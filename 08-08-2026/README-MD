@@ -1,0 +1,30 @@
+# Adicionando memória no programa
+
+- No arquivo mif.rom mostra as características de memória e já contém as informações que vamos usar para realizar os testes, um exemplo está baixo, onde está com o espaço indica que os primeiros bits são as opções e os outros é o número que vamos usar na operação
+```bash
+aluno: first_cpu_mem_restored$ cat rom.mif 
+DEPTH = 256;           % Memory depth and width are required    %
+WIDTH = 10;            % Enter a decimal number                 %
+
+ADDRESS_RADIX = HEX;  % Address and value radixes are optional %
+DATA_RADIX = BIN;     % Enter BIN, DEC, HEX, or OCT; unless    %
+                      % otherwise specified, radixes = HEX     %
+
+-- Specify values for addresses, which can be single address or range
+
+CONTENT
+  BEGIN
+    0      : 01 00000101;  --> opcao separada do operando
+    1      : 10 00000011;
+    2      : 10 00000111;
+    3      : 10 00001000;
+    4      : 10 00010000;
+    5      : 11 00000010;
+    6      : 11 00000001;
+    [7..FF]: 00XXXXXXXX;
+    %[0..F] : 0;           Range--Every address from 0 to F = 0   %
+    %6      : F;           Single address--Address 6 = F          %
+    %8      : F E 5;	     Range starting from specific address-- %	
+    %                      Addr[8] = F, Addr[9] = E, Addr[A] = 5  %
+
+```

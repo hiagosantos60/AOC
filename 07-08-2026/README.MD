@@ -11,3 +11,7 @@
     - 1 somador, 2 multiplexadores, 1 decodificador e 1 registrador
     - Entrada dos operandos sequenciais
     - Flexível, pode implementar qualquer expressão com soma e subtração
+
+- Essa calculadora funciona passando manualmente a opção que deseja se feita e o operando, com isso, temos o funcionamento de incremento, decremento entre os valores.
+
+![Exemplo de funcionamento](fotos/imagem-funcionamenot.png)
