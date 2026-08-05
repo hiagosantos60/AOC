@@ -17,11 +17,11 @@ M5 = 7
 M6 = 0
 M7 = 1
 
-ACC <- M5 (7 | 01 00000111)
+ACC <- M5 (7 | 01 00000111) -> Esperado 7 no output
 ACC <- ACC + M6 (ACC + 0 | 10 00000000) -> Esperado 7 no output
-ACC <- ACC + M1 (ACC + 3 | 10 00001010) -> Esperado  no output
-ACC <- ACC + M3 (ACC + 3 | 10 00000011) -> Esperado  no output
-ACC <- ACC - M7 (ACC - 1 | 11 00000001) -> Esperado  no output
-ACC <- ACC - M0 (ACC - 7 | 11 00000111) -> Esperado  no output
-ACC <- ACC + M4 (ACC + 0 | 10 00000000) -> Esperado  no output
-ACC <- ACC + M2 (ACC + 6 | 10 00000110) -> Esperado  no output 
+ACC <- ACC + M1 (ACC + 3 | 10 00000011) -> Esperado 10 no output
+ACC <- ACC + M3 (ACC + 3 | 10 00000011) -> Esperado 13 no output
+ACC <- ACC - M7 (ACC - 1 | 11 00000001) -> Esperado 12 no output
+ACC <- ACC - M0 (ACC - 7 | 11 00000111) -> Esperado 5 no output
+ACC <- ACC + M4 (ACC + 0 | 10 00000000) -> Esperado 5 no output
+ACC <- ACC + M2 (ACC + 6 | 10 00000110) -> Esperado 11 no output
