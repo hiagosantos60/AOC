@@ -1,5 +1,5 @@
 Analysis & Synthesis report for first_cpu_mem
-Wed Aug  5 08:58:44 2026
+Tue Aug 11 10:17:48 2026
 Quartus Prime Version 20.1.1 Build 720 11/11/2020 SJ Standard Edition
 
 
@@ -50,7 +50,7 @@ https://fpgasoftware.intel.com/eula.
 +--------------------------------------------------------------------------------------+
 ; Analysis & Synthesis Summary                                                         ;
 +------------------------------------+-------------------------------------------------+
-; Analysis & Synthesis Status        ; Successful - Wed Aug  5 08:58:44 2026           ;
+; Analysis & Synthesis Status        ; Successful - Tue Aug 11 10:17:48 2026           ;
 ; Quartus Prime Version              ; 20.1.1 Build 720 11/11/2020 SJ Standard Edition ;
 ; Revision Name                      ; first_cpu_mem                                   ;
 ; Top-level Entity Name              ; first_cpu_mem                                   ;
@@ -418,7 +418,7 @@ Note: In order to hide this table in the UI and the text report file, please set
 Info: *******************************************************************
 Info: Running Quartus Prime Analysis & Synthesis
     Info: Version 20.1.1 Build 720 11/11/2020 SJ Standard Edition
-    Info: Processing started: Wed Aug  5 08:58:36 2026
+    Info: Processing started: Tue Aug 11 10:17:42 2026
 Info: Command: quartus_map --read_settings_files=on --write_settings_files=off first_cpu_mem -c first_cpu_mem
 Warning (18236): Number of processors has not been specified which may cause overloading on shared machines.  Set the global assignment NUM_PARALLEL_PROCESSORS in your QSF to an appropriate value for best performance.
 Info (20030): Parallel compilation is enabled and will use 12 of the 12 processors detected
@@ -461,14 +461,6 @@ Info (12131): Elaborated megafunction instantiation "LPM_ROM:inst1|altrom:srom|a
 Info (12021): Found 1 design units, including 1 entities, in source file db/altsyncram_7001.tdf
     Info (12023): Found entity 1: altsyncram_7001 File: /home/aluno/AOC/08-08-2026/first_cpu_mem_restored/db/altsyncram_7001.tdf Line: 28
 Info (12128): Elaborating entity "altsyncram_7001" for hierarchy "LPM_ROM:inst1|altrom:srom|altsyncram:rom_block|altsyncram_7001:auto_generated" File: /opt/altera/intelFPGA/20.1/quartus/libraries/megafunctions/altsyncram.tdf Line: 792
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
-Warning (127007): Memory Initialization File or Hexadecimal (Intel-Format) File "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/rom.mif" contains "don't care" values -- overwriting them with 0s
 Info (12128): Elaborating entity "inc" for hierarchy "inc:inst12"
 Info (12128): Elaborating entity "lpm_add_sub0" for hierarchy "lpm_add_sub0:inst"
 Info (12128): Elaborating entity "lpm_add_sub" for hierarchy "lpm_add_sub0:inst|lpm_add_sub:LPM_ADD_SUB_component" File: /home/aluno/AOC/08-08-2026/first_cpu_mem_restored/lpm_add_sub0.vhd Line: 78
@@ -515,10 +507,10 @@ Info (21057): Implemented 70 device resources after synthesis - the final resour
     Info (21059): Implemented 25 output pins
     Info (21061): Implemented 33 logic cells
     Info (21064): Implemented 10 RAM segments
-Info: Quartus Prime Analysis & Synthesis was successful. 0 errors, 32 warnings
-    Info: Peak virtual memory: 494 megabytes
-    Info: Processing ended: Wed Aug  5 08:58:44 2026
-    Info: Elapsed time: 00:00:08
-    Info: Total CPU time (on all processors): 00:00:11
+Info: Quartus Prime Analysis & Synthesis was successful. 0 errors, 24 warnings
+    Info: Peak virtual memory: 496 megabytes
+    Info: Processing ended: Tue Aug 11 10:17:48 2026
+    Info: Elapsed time: 00:00:06
+    Info: Total CPU time (on all processors): 00:00:12
 
 

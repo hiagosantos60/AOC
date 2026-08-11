@@ -1,5 +1,5 @@
 Fitter report for first_cpu_mem
-Wed Aug  5 08:58:53 2026
+Tue Aug 11 10:17:54 2026
 Quartus Prime Version 20.1.1 Build 720 11/11/2020 SJ Standard Edition
 
 
@@ -69,7 +69,7 @@ https://fpgasoftware.intel.com/eula.
 +--------------------------------------------------------------------------------------+
 ; Fitter Summary                                                                       ;
 +------------------------------------+-------------------------------------------------+
-; Fitter Status                      ; Successful - Wed Aug  5 08:58:53 2026           ;
+; Fitter Status                      ; Successful - Tue Aug 11 10:17:54 2026           ;
 ; Quartus Prime Version              ; 20.1.1 Build 720 11/11/2020 SJ Standard Edition ;
 ; Revision Name                      ; first_cpu_mem                                   ;
 ; Top-level Entity Name              ; first_cpu_mem                                   ;
@@ -154,13 +154,13 @@ https://fpgasoftware.intel.com/eula.
 ; Number detected on machine ; 32          ;
 ; Maximum allowed            ; 12          ;
 ;                            ;             ;
-; Average used               ; 1.03        ;
+; Average used               ; 1.02        ;
 ; Maximum used               ; 12          ;
 ;                            ;             ;
 ; Usage by Processor         ; % Time Used ;
 ;     Processor 1            ; 100.0%      ;
-;     Processor 2            ;   0.3%      ;
-;     Processors 3-12        ;   0.3%      ;
+;     Processor 2            ;   0.1%      ;
+;     Processors 3-12        ;   0.1%      ;
 +----------------------------+-------------+
 
 
@@ -1370,7 +1370,7 @@ RAM content values are presented in the following format: (Binary) (Octal) (Deci
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ;   Addr   ;              +0              ;              +1              ;              +2              ;              +3              ;              +4              ;              +5              ;              +6              ;              +7              ;
 +----------+------------------------------+------------------------------+------------------------------+------------------------------+------------------------------+------------------------------+------------------------------+------------------------------+
-;0;(0100000101) (405) (261) (105)    ;(1000000011) (1003) (515) (203)   ;(1000000111) (1007) (519) (207)   ;(1000001000) (1010) (520) (208)   ;(1000010000) (1020) (528) (210)   ;(1100000010) (1402) (770) (302)   ;(1100000001) (1401) (769) (301)   ;(0000000000) (0) (0) (00)   ;
+;0;(0100000111) (407) (263) (107)    ;(1000000000) (1000) (512) (200)   ;(1000000011) (1003) (515) (203)   ;(1000000011) (1003) (515) (203)   ;(1100000001) (1401) (769) (301)   ;(1100000111) (1407) (775) (307)   ;(1000000000) (1000) (512) (200)   ;(1000000110) (1006) (518) (206)   ;
 ;8;(0000000000) (0) (0) (00)    ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;
 ;16;(0000000000) (0) (0) (00)    ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;
 ;24;(0000000000) (0) (0) (00)    ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;(0000000000) (0) (0) (00)   ;
@@ -1743,13 +1743,13 @@ Info (334003): Started post-fitting delay annotation
 Info (334004): Delay annotation completed successfully
 Info (334003): Started post-fitting delay annotation
 Info (334004): Delay annotation completed successfully
-Info (11218): Fitter post-fit operations ending: elapsed time is 00:00:00
+Info (11218): Fitter post-fit operations ending: elapsed time is 00:00:01
 Info (144001): Generated suppressed messages file /home/aluno/AOC/08-08-2026/first_cpu_mem_restored/output_files/first_cpu_mem.fit.smsg
 Info: Quartus Prime Fitter was successful. 0 errors, 2 warnings
-    Info: Peak virtual memory: 1755 megabytes
-    Info: Processing ended: Wed Aug  5 08:58:53 2026
-    Info: Elapsed time: 00:00:09
-    Info: Total CPU time (on all processors): 00:00:12
+    Info: Peak virtual memory: 1760 megabytes
+    Info: Processing ended: Tue Aug 11 10:17:54 2026
+    Info: Elapsed time: 00:00:06
+    Info: Total CPU time (on all processors): 00:00:11
 
 
 +----------------------------+

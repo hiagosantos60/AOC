@@ -1,5 +1,5 @@
 EDA Netlist Writer report for first_cpu_mem
-Wed Aug  5 08:59:00 2026
+Tue Aug 11 10:17:58 2026
 Quartus Prime Version 20.1.1 Build 720 11/11/2020 SJ Standard Edition
 
 
@@ -37,7 +37,7 @@ https://fpgasoftware.intel.com/eula.
 +-------------------------------------------------------------------+
 ; EDA Netlist Writer Summary                                        ;
 +---------------------------+---------------------------------------+
-; EDA Netlist Writer Status ; Successful - Wed Aug  5 08:59:00 2026 ;
+; EDA Netlist Writer Status ; Successful - Tue Aug 11 10:17:58 2026 ;
 ; Revision Name             ; first_cpu_mem                         ;
 ; Top-level Entity Name     ; first_cpu_mem                         ;
 ; Family                    ; Cyclone IV E                          ;
@@ -81,13 +81,13 @@ https://fpgasoftware.intel.com/eula.
 Info: *******************************************************************
 Info: Running Quartus Prime EDA Netlist Writer
     Info: Version 20.1.1 Build 720 11/11/2020 SJ Standard Edition
-    Info: Processing started: Wed Aug  5 08:59:00 2026
+    Info: Processing started: Tue Aug 11 10:17:58 2026
 Info: Command: quartus_eda --read_settings_files=off --write_settings_files=off first_cpu_mem -c first_cpu_mem
 Warning (18236): Number of processors has not been specified which may cause overloading on shared machines.  Set the global assignment NUM_PARALLEL_PROCESSORS in your QSF to an appropriate value for best performance.
 Info (204019): Generated file first_cpu_mem.vo in folder "/home/aluno/AOC/08-08-2026/first_cpu_mem_restored/simulation/modelsim/" for EDA simulation tool
 Info: Quartus Prime EDA Netlist Writer was successful. 0 errors, 1 warning
     Info: Peak virtual memory: 598 megabytes
-    Info: Processing ended: Wed Aug  5 08:59:00 2026
+    Info: Processing ended: Tue Aug 11 10:17:58 2026
     Info: Elapsed time: 00:00:00
     Info: Total CPU time (on all processors): 00:00:00
 

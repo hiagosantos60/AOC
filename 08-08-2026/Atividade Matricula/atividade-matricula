@@ -1,3 +1,5 @@
+202510703637 -> matricula
+
 1 0 7 0 3 6   3     7
      ...     m[1]  m[0]	
      
@@ -17,11 +19,24 @@ M5 = 7
 M6 = 0
 M7 = 1
 
-ACC <- M5 (7 | 01 00000111) -> Esperado 7 no output
+ACC <- M5       (7 | 01 00000111) -> Esperado 7 no output
 ACC <- ACC + M6 (ACC + 0 | 10 00000000) -> Esperado 7 no output
 ACC <- ACC + M1 (ACC + 3 | 10 00000011) -> Esperado 10 no output
-ACC <- ACC + M3 (ACC + 3 | 10 00000011) -> Esperado 13 no output
+ACC <- ACC + M3 (ACC + 3 | 10 00000011) -> Esperado 13  no output
 ACC <- ACC - M7 (ACC - 1 | 11 00000001) -> Esperado 12 no output
 ACC <- ACC - M0 (ACC - 7 | 11 00000111) -> Esperado 5 no output
 ACC <- ACC + M4 (ACC + 0 | 10 00000000) -> Esperado 5 no output
 ACC <- ACC + M2 (ACC + 6 | 10 00000110) -> Esperado 11 no output
+
+Arquivo MIF:
+CONTENT BEGIN
+	000  :   0100000111;
+	001  :   1000000000;
+	002  :   1000000011;
+	003  :   1000000011;
+	004  :   1100000001;
+	005  :   1100000111;
+	006  :   1000000000;
+	007  :   1000000110;
+	[008..0FF]  :   00XXXXXXXX;
+END;
