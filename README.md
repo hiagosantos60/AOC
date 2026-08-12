@@ -6,3 +6,4 @@ Sinta-se a vontade para utilizar dos materiais aqui presentes.
 
 - [07-08-2026](07-08-2026) - Introdução ao Rudi e operações
 - [08-08-2026](08-08-2026) - Adicionando memória ao decode
+- [12-08-2026](12-08-2026) - Lista introdução ao BIP
