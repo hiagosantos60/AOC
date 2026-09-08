@@ -9,3 +9,4 @@ Sinta-se a vontade para utilizar dos materiais aqui presentes.
 - [12-08-2026](12-08-2026) - Lista introdução ao BIP
 - [25-08-2026](25-08-2026) - Introdução ao assembly do BIP 
 - [26-08-2026](26-08-2026) - Lista de exercícios BIP 
+- [8-9-2026](08-09-2026) - Iniciando com arquitetura AVR 
