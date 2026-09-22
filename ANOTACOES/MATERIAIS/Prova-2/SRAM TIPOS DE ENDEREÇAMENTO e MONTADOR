@@ -1,0 +1,77 @@
+SRAM -> TIPOS DE ENDEREÇAMENTO e MONTADOR:
+Os registradores R26 e R31 são utilizados para carregar valores constantes diretamente neles
+
+Os Ponteiros de 16 bits (X, Y, Z):
+    Ponteiro X = R27 (Byte Alto) : R26 (Byte Baixo) — Usado para endereçamento indireto básico.
+    Ponteiro Y = R29 (Byte Alto) : R28 (Byte Baixo) — Suporta endereçamento indireto, pós incremento, pré-decremento e deslocamento (ldd/std).
+    Ponteiro Z = R31 (Byte Alto) : R30 (Byte Baixo) — O mais versátil. Além de tudo o que o Y faz, ele também é usado para ler dados diretamente da memória Flash (lpm).
+
+
+Instruções utilizadas:
+- lds (Load Direct from Data Space): Copia um byte da SRAM (endereçamento direto) para um registrador. Ocupa 2 palavras (32 bits) na memória Flash.
+- sts (Store Direct to Data Space): Copia o conteúdo de um registrador para um endereço específico da SRAM (endereçamento direto).
+- ld (Load Indirect): Carrega um byte da SRAM para um registrador usando os ponteiros X, Y ou Z (suporta variações com pós-incremento e pré-decremento).
+- st (Store Indirect): Armazena o conteúdo de um registrador na SRAM usando os ponteiros X, Y ou Z.
+
+Displacement == Deslocamento
+
+- ldd (Load Indirect with Displacement): Carrega um byte da SRAM usando um ponteiro (Y ou Z) somado a uma constante imediata.
+- std (Store Indirect with Displacement): Armazena um dado na SRAM usando um ponteiro (Y ou Z) mais um deslocamento constante.
+
+São 5 tipos de endereçamento:
+- Direto: O conteúdo de uma posição da memória de dados é acessada usando seu endereço diretamente
+
+lds R0, 0x0100
+sts 0x0101, R0
+
+- Indireto: O conteúdo é acessado via ponteiro X, Y ou Z que fica salvo nos registradores e tem a parte alta e parte baixa do binário, do endereço de onde está o valor
+
+ldi r27, 0x01 ; Byte mais significativo de X (XH)
+ldi r26, 0x00 ; Byte menos significativo de X (XL)
+ld r0, X ; X est´a apontando o endere¸co 0x0100
+inc r0
+st X, r0
+
+- Indireto com Pós-Incremento: O conteúdo de uma posição da memória de dados é acessada usando os ponteiros X,Y e Z, e o ponteiro é incrementado após o acesso do valor
+
+	ldi r27, 0x01 ; Byte mais significativo de X (XH)
+	ldi r26, 0x00 ; Byte menos significativo de X (XL)
+Loop:
+	inc r0
+	st X+, r0
+	rjmp loop
+
+- Indireto com Pré-Decremento: O ponteiro X,Y,Z é decrementado e depois usado para acessar o conteúdo
+
+	ldi r27, 0x01 ; Byte mais significativo de X (XH)
+	ldi r26, 0x0B ; Byte menos significativo de X (XL)
+Loop:
+	inc r0
+	st -X, r0
+	rjmp loop
+
+- Indireto com Deslocamento: O endereço do operando é o resultado do conteúdo do registro Y ou Z adicionando o valor contido em seis bits da palavra de instrução. O ponteiro não sobre alteração
+
+ldi r29, 0x01 ; Byte mais significativo de Y (YH = r29)
+ldi r28, 0x00 ; Byte menos significativo de Y (YL = r28)
+inc r0
+std Y+2, r0 ; Y = 0x0100 "+2" = 0x0102
+inc r0
+std Y+3, r0 ; Y continua sendo 0x0100. Agora com + 3,
+	    ; a opera¸c~ao acontece no endere¸co 0x0103
+	    
+DIRETIVAS DO MONTADOR:
+.BYTE -> Reserva bytes para variável na RAM
+
+- Diretiva de segmento:
+.CSEG ; Flash (programa)
+.DSEG ; Ram (dados)
+.ESEG ; EEPROM
+
+.ORG permite definir endereço absoluto    
+
+FAÇA UM PROGRAMA QUE SOME DUAS VARIÁVEIS DE 8 BITs.
+FAÇA UM PROGRAMA QUE SOME DUAS VARIÁVEIS DE 16 BITs.
+Está resolvido na aula do dia 22-09-2026
+
+
