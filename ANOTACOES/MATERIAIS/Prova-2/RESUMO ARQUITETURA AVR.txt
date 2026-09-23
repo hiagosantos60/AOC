@@ -1,0 +1,40 @@
+RESUMO ARQUITETURA AVR
+
+CISC – Complex Instructions Set Computers
+	MULT 0,3
+RISC – Reduced Instructions Set Computers
+	LOAD A,0
+	LOAD B,3
+	MULT A,B
+	STORE 0,A
+
+Registro de status ULA:
+I - Habilitação de interrupção global (Global Interrupt Enable)
+T - Bit de armazenamento (Bit Copy Storage)
+H - Sinalizador de carry em nibble (Half Carry Flag)
+S - Bit de sinal, S = N ⊕ V (Sign Bit)
+V - Sinalizador de estouro do complemento de dois (Two’s Complement Overflow Flag)
+N - Sinalizado de negativo (Negative Flag)
+Z - Sinalizador de zero (Zero Flag)
+C - Sinalizador de carry (Carry Flag)
+
+Ponteiros para endereçamento indireto:
+R26, R27 -> X-register Low Byte, X-register High Byte
+	- Não dá pra fazer acesso
+R28, R29 -> Y-register Low Byte, Y-register High Byte
+R30, R31 -> Z-register Low Byte, Z-register High Byte
+
+Demais registradores são de uso geral, mas podem ter essas características:
+R0–R15: uso geral "puro" — não podem ser operandos diretos em instruções com constantes imediatas
+(ex: LDI, CPI, ANDI, ORI, SUBI), pois essas instruções só aceitam R16–R31.
+
+R16–R31: uso geral, mas com o privilégio de aceitar operandos imediatos (constantes) diretamente.
+
+DIRETIVAS DO MONTADOR:
+- Definição do seguimento de dados ou código: .DSEG, .CSEG, .ESEG
+- Reserva de bytes na memória SRAM (variável): .BYTE
+- Reserva de bytes/words (constantes): .DB, .DW
+- Definir um nome simbólico para um registrador: .DEF
+- Setar um símbolo a partir de uma expressão: .EQU, .SET
+- Setar um endereço de origem: .ORG
+- Incluir um arquivo fonte: .INCLUDE

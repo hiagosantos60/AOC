@@ -70,8 +70,33 @@ DIRETIVAS DO MONTADOR:
 
 .ORG permite definir endereço absoluto    
 
-FAÇA UM PROGRAMA QUE SOME DUAS VARIÁVEIS DE 8 BITs.
-FAÇA UM PROGRAMA QUE SOME DUAS VARIÁVEIS DE 16 BITs.
-Está resolvido na aula do dia 22-09-2026
+========================================
+       AVR - LITTLE-ENDIAN
+========================================
 
+Valor de 16 bits: 0x1234
+
+Como fica salvo na memória (SRAM):
+Endereço 0x0100  ->  0x34  (Byte Menos Significativo)
+Endereço 0x0101  ->  0x12  (Byte Mais Significativo)
+
+Como fica nos registradores (ex: Z):
+R30 -> 0x34
+R31 -> 0x12
+========================================
+
+========================================
+             BIG-ENDIAN
+========================================
+
+Valor de 16 bits: 0x1234
+
+Como fica salvo na memória (SRAM):
+Endereço 0x0100  ->  0x12  (Byte Mais Significativo)
+Endereço 0x0101  ->  0x34  (Byte Menos Significativo)
+
+Como ficaria nos registradores (menor índice primeiro):
+R30 -> 0x12
+R31 -> 0x34
+========================================
 

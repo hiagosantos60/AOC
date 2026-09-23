@@ -1,0 +1,15 @@
+.INCLUDE <m328Pdef.inc>
+
+.DSEG
+.ORG 0x0100
+
+VARIAVEIS AQUI
+
+.CSEG
+.ORG 0x0000
+    
+codigo:
+	COMECAR O CODIGO
+	
+fim:
+    rjmp fim                    ; trava no final
