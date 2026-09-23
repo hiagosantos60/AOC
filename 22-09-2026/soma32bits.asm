@@ -51,7 +51,9 @@ modo_direto:
     ADC R16, R17     ; Soma com carry do byte anterior
     STS C+3, R16
 
-modo_indireto:
+modo_indireto_pos_incremento:
+; ACESSO INDIRETO SEM INCREMENTAR, FAZENDO NA MÃO
+
     ; Configuracao os ponteiros X, Y e Z
     LDI XL, LOW(A)
     LDI XH, HIGH(A)
@@ -93,7 +95,7 @@ modo_indireto:
     ADC R16, R17
     ST Z, R16
     
-modo_pos_incremento:
+modo_indireto_pos_incremento:
     ; Configura os ponteiros X, Y e Z
     LDI XL, LOW(A)
     LDI XH, HIGH(A)
@@ -122,7 +124,7 @@ modo_pos_incremento:
     ADC R16, R17
     ST Z+, R16
     
-modo_deslocamento:
+modo_indireto_deslocamento:
     ; configura ponteiro Y
     LDI YL, LOW(A)
     LDI YH, HIGH(A)
