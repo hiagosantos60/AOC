@@ -51,28 +51,6 @@ subtracao_pos_incremento_manual:
     LDI R30, LOW(C)
     LDI R31, HIGH(C)
     
-    ; operar a subtracao 
-    LD R16, X+ ; coloca o valor de A[0] apontado e incrementa X
-    LD R17, Y+ ; coloca o valor de B[0] apontado e incrementa Y
-    SUB R16, R17 ; faz a operacao de subtracao com carry
-    ST Z+, R16 ; armazena o valor em C[0]
-    
-    LD R16, X+ ; coloca o valor de A[0] apontado e incrementa X
-    LD R17, Y+ ; coloca o valor de B[0] apontado e incrementa Y
-    SBC R16, R17 ; faz a operacao de subtracao com carry
-    ST Z+, R16 ; armazena o valor em C[0]
-    
-    LD R16, X+ ; coloca o valor de A[0] apontado e incrementa X
-    LD R17, Y+ ; coloca o valor de B[0] apontado e incrementa Y
-    SBC R16, R17 ; faz a operacao de subtracao com carry
-    ST Z+, R16 ; armazena o valor em C[0]
-    
-    LD R16, X+ ; coloca o valor de A[0] apontado e incrementa X
-    LD R17, Y+ ; coloca o valor de B[0] apontado e incrementa Y
-    SBC R16, R17 ; faz a operacao de subtracao com carry
-    ST Z+, R16 ; armazena o valor em C[0]
-    
-    
 ; Se fosse fazer com loop
 subtracao_loop:
     ; Carrega valores para os ponteiros
@@ -101,3 +79,64 @@ loop_subtracao_inicio:
     
 fim:
     rjmp fim                    
+	
+	
+==========================================================================================
+FAZER SEM LOOP, SOMENTE NA MÃO:
+
+.INCLUDE <m328Pdef.inc>
+
+.DSEG
+.ORG 0x0100
+num1:   .BYTE 4   ; 32 bits (Minuendo)
+num2:   .BYTE 4   ; 32 bits (Subtraendo)
+res:    .BYTE 4   ; 32 bits (Diferença)
+
+.CSEG
+.ORG 0x0000
+
+main:
+    ; Configurar ponteiros X (num1), Y (num2) e Z (res)
+    LDI XL, LOW(num1)
+    LDI XH, HIGH(num1)
+    
+    LDI YL, LOW(num2)
+    LDI YH, HIGH(num2)
+    
+    LDI ZL, LOW(res)
+    LDI ZH, HIGH(res)
+
+    ; =========================================================
+    ; BYTE 0 (Bits 0 a 7 - LOW)
+    ; =========================================================
+    LD  R16, X+   ; R16 = num1[0]
+    LD  R17, Y+   ; R17 = num2[0]
+    SUB R16, R17  ; Subtrai SEM Borrow (R16 = R16 - R17). Pode gerar Carry=1.
+    ST  Z+, R16   ; Salva res[0]
+
+    ; =========================================================
+    ; BYTE 1 (Bits 8 a 15)
+    ; =========================================================
+    LD  R16, X+   ; R16 = num1[1]
+    LD  R17, Y+   ; R17 = num2[1]
+    SBC R16, R17  ; Subtrai COM Borrow (R16 = R16 - R17 - C)
+    ST  Z+, R16   ; Salva res[1]
+
+    ; =========================================================
+    ; BYTE 2 (Bits 16 a 23)
+    ; =========================================================
+    LD  R16, X+   
+    LD  R17, Y+   
+    SBC R16, R17  ; Subtrai COM Borrow
+    ST  Z+, R16   
+
+    ; =========================================================
+    ; BYTE 3 (Bits 24 a 31 - HIGH)
+    ; =========================================================
+    LD  R16, X+   
+    LD  R17, Y+   
+    SBC R16, R17  ; Subtrai COM Borrow final
+    ST  Z+, R16   
+
+fim:
+    rjmp fim	
