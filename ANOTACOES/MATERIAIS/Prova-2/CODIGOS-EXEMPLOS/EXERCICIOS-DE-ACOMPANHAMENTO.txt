@@ -1,0 +1,240 @@
+; Crie as seguintes sub-rotinas:
+; init_32bits
+; Inicializa uma variável de 32 bits apontada por X com os valores passados em R16, R17, R18 e R19
+; Parâmetros:
+; R16, R17, R18, R19 : Valor que deve ser utilizado na inicialização. Sendo o R16 o byte menos significativo e o R19 o mais.
+; Registrador X:Ponteiro para a posição inicial da variável. Considere o byte menos significativo armazenado no menor endereço.
+; zera_32bits
+; Inicializa uma variável de 32 bits com zero.
+; Parâmetros:
+; Registrador X : Ponteiro para a posição inicial da variável.
+; sub_32bits
+; Subtraia duas variáveis de 32 bits e guarde em uma terceira variável.
+; Parâmetros:
+; Registrador X : Ponteiro para a posição inicial da primeira variável.
+; Registrador Y : Ponteiro para a posição inicial da segunda variável, a qual será subtraída da primeira.
+; Registrador Z : Ponteiro para a posição inicial da terceira variável.
+; Observações:
+; Salve o contexto adequadamente.
+; Utilize modos de endereçamento adequados para cada caso e laços de repetição, se for o caso.
+; Faça um programa principal para testar a sub-rotina.
+
+.INCLUDE <m328Pdef.inc>
+
+.DSEG
+.ORG 0x0100
+
+VAR1: .BYTE 4
+VAR2: .BYTE 4
+VAR3: .BYTE 4
+
+.CSEG
+.ORG 0x0000
+
+main:
+	LDI R16, LOW(RAMEND)
+	OUT SPL, R16
+	LDI R16, HIGH(RAMEND)
+	OUT SPH, R16
+
+	LDI XL, LOW(VAR1)
+	LDI XH, HIGH(VAR1)
+	LDI R16, 0x4D
+	LDI R17, 0x3C
+	LDI R18, 0x2B
+	LDI R19, 0x1A
+	RCALL init_32bits
+	
+	LDI XL, LOW(VAR2)
+	LDI XH, HIGH(VAR2)
+	RCALL zera_32bits
+	
+	LDI XL, LOW(VAR1)
+	LDI XH, HIGH(VAR1)
+	LDI YL, LOW(VAR2)
+	LDI YH, HIGH(VAR2)
+	LDI ZL, LOW(VAR3)
+	LDI ZH, HIGH(VAR3)
+	RCALL sub_32bits
+	
+fim:
+	RJMP fim
+
+
+init_32bits:
+	ST X+, R16
+	ST X+, R17
+	ST X+, R18
+	ST X+, R19
+	RET
+
+
+zera_32bits:
+	PUSH R16
+	
+	CLR R16
+	ST X+, R16
+	ST X+, R16
+	ST X+, R16
+	ST X+, R16
+	
+	POP R16
+	RET
+
+
+sub_32bits:
+	PUSH R16
+	PUSH R17
+	
+	LD R16, X+
+	LD R17, Y+
+	SUB R16, R17
+	ST Z+, R16
+	
+	LD R16, X+
+	LD R17, Y+
+	SBC R16, R17
+	ST Z+, R16
+	
+	LD R16, X+
+	LD R17, Y+
+	SBC R16, R17
+	ST Z+, R16
+	
+	LD R16, X+
+	LD R17, Y+
+	SBC R16, R17
+	ST Z+, R16
+	
+	POP R17
+	POP R16
+	RET
+	
+	
+=====================================================================================================================================================================
+; Faça um código assembly que execute as seguintes operações:
+; Declare três vetores com 10 posições de 8 bits (A1, A2 e A3) e um vetor de 3 posições de 8 bits (A4).
+; Dica: utilize .DSEG e ".BYTE 8"
+; Inicialize os vetores A1 e A2 com os valores de 1 até 10.
+; Dica: utilize endereçamento indireto com pós incremento.
+; Dica: Utilize um loop com iterações.
+; Some a primeira posição do A1 com a última do A2 e armazene na primeira do A3. Faça isso sucessivamente até que todas as posições sejam operadas.
+; Dica: utilize endereçamento indireto com pós incremento para acessar o A1 e o A3 e endereçamento indireto com pré decremento para acessar o A2.
+; Dica: Utilize um loop com iterações.
+; Some A2(1) e A3(3), A2(3) e A3(4), A2(5) e A3(7) e salve consecutivamente no A4.
+; Dica: utilize endereçamento indireto com deslocamento para acessar o A2 e o A3 e endereçamento indireto com pós incremento para acessar o A4.
+; Dica: Não utilize loop.
+
+.INCLUDE <m328Pdef.inc>
+
+.DSEG
+.ORG 0x0100
+
+A1: .BYTE 10
+A2: .BYTE 10
+A3: .BYTE 10
+A4: .BYTE 3
+
+.CSEG
+.ORG 0x0000
+
+main:
+	LDI R16, LOW(RAMEND)
+	OUT SPL, R16
+	LDI R16, HIGH(RAMEND)
+	OUT SPH, R16
+
+	LDI XL, LOW(A1)
+	LDI XH, HIGH(A1)
+	LDI YL, LOW(A2)
+	LDI YH, HIGH(A2)
+	RCALL init_var
+	
+	LDI XL, LOW(A1)
+	LDI XH, HIGH(A1)
+	LDI YL, LOW(A2+10)
+	LDI YH, HIGH(A2+10)
+	LDI ZL, LOW(A3)
+	LDI ZH, HIGH(A3)
+	RCALL somar_posicoes
+	
+	LDI YL, LOW(A2)
+	LDI YH, HIGH(A2)
+	LDI ZL, LOW(A3)
+	LDI ZH, HIGH(A3)
+	LDI XL, LOW(A4)
+	LDI XH, HIGH(A4)
+	RCALL somar_posicoes_especificas
+	
+fim:
+	RJMP fim
+
+
+init_var:
+	PUSH R16
+	PUSH R17
+	
+	LDI R16, 10
+	LDI R17, 1
+loop_init_var:
+	ST X+, R17
+	ST Y+, R17
+	INC R17
+	DEC R16
+	BRNE loop_init_var
+	
+	POP R17
+	POP R16
+	RET
+
+
+somar_posicoes:
+	PUSH R16
+	PUSH R17
+	PUSH R18
+	
+	LD R16, X+
+	LD R17, -Y
+	ADD R16, R17
+	ST Z+, R16
+	
+	LDI R18, 9
+loop_somar_posicoes:
+	LD R16, X+
+	LD R17, -Y
+	ADC R16, R17
+	ST Z+, R16
+	DEC R18
+	BRNE loop_somar_posicoes
+	
+	POP R18
+	POP R17
+	POP R16
+	RET
+
+
+somar_posicoes_especificas:
+	PUSH R16
+	PUSH R17
+	
+	LDD R16, Y+1
+	LDD R17, Z+3
+	ADD R16, R17
+	ST X+, R16
+	
+	LDD R16, Y+3
+	LDD R17, Z+4
+	ADD R16, R17
+	ST X+, R16
+	
+	LDD R16, Y+5
+	LDD R17, Z+7
+	ADD R16, R17
+	ST X+, R16
+	
+	POP R17
+	POP R16
+	RET
+	
+=====================================================================================================================================================================
+

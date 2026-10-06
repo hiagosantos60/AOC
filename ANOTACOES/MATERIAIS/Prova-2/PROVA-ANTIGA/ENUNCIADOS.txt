@@ -1,0 +1,41 @@
+AI2_1: Regiões da Memória de Dados – 2025-2
+
+Parte 1 – Manipulação de vetores
+
+    Declare dois vetores com 8 posições de 8 bits (V0, V1) e um vetor com 4 posições (V2).
+
+    Inicialize o V0 com os valores de 8 até 15.
+
+    Copie de trás para frente o V0 para V1.
+
+    Some as posições pares do V0 com as ímpares do V1, colocando o resultado no V2. Exemplo: V2(0) = V0(0) + V1(1), etc.
+
+Obs.: Utilize as diretivas do montador e os modos de endereçamento adequados.
+Parte 2 – Crie as seguintes sub-rotinas:
+
+    inc_32bits
+
+        Incremente uma variável de 32 bits apontada por X.
+
+        Parâmetros:
+            Registrador X: Ponteiro para a posição inicial da variável.
+
+    dec_32bits
+
+        Decremente uma variável de 32 bits apontada por X.
+
+        Parâmetros:
+            Registrador X: Ponteiro para a posição inicial da variável.
+
+    mov_32bits
+
+        Copie uma variável de 32 bits apontada por X para outra variável apontada por Y.
+
+        Parâmetros:
+            Registrador X: Ponteiro para a posição inicial da variável a ser copiada.
+            Registrador Y: Ponteiro para a posição inicial da variável que receberá o valor.
+
+    OBS.:
+        Para todos os casos, considere o byte menos significativo armazenado no menor endereço.
+        Implemente as sub-rotinas sem chamada de sub-rotinas intermediárias.
+        Implemente testes para cada uma das sub-rotinas.

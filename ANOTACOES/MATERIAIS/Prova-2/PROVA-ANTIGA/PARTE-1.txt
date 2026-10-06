@@ -1,0 +1,104 @@
+
+.INCLUDE <m328Pdef.inc>
+
+.DSEG
+.ORG 0x0100
+
+    V0: .BYTE 8
+	V1: .BYTE 8
+	V2: .BYTE 8
+
+.CSEG
+.ORG 0x0000
+   
+main:
+	; APONTA PARA V0
+	LDI XL, LOW(V0)
+	LDI XH, HIGH(V0)
+	
+	; APONTA PARA V1
+	LDI YL, LOW(V1)
+	LDI YH, HIGH(V1)
+	
+	; APONTA PARA V2
+	LDI ZL, LOW(V2)
+	LDI ZH, HIGH(V2)
+
+	; SETUP DOS VETORES 
+	RCALL init_vetores 
+		
+	RCALL copiar_tras_frente
+	
+	RCALL somar_pares_impares
+	
+	RJMP fim
+	
+init_vetores:
+	LDI R16, 8          
+	LDI R17, 8          
+loop_init_vetores:
+	ST X+, R16          
+	ST Y+, R16          
+	INC R16             
+	DEC R17             
+	BRNE loop_init_vetores 
+	RET                
+	
+copiar_tras_frente:
+	; FORMA COM LOOP 
+	; APONTA PARA O FINAL DE V0
+	LDI XL, LOW(V0+8)
+	LDI XH, HIGH(V0+8)
+
+	; APONTA PARA O INICIO DE V1
+	LDI YL, LOW(V1)
+	LDI YH, HIGH(V1)
+
+	LDI R16, 0x08 ; counter
+loop_copiar_tras_frente:
+	LD R17, -X
+	ST Y+, R17
+	DEC R16
+	BRNE loop_copiar_tras_frente
+	RET
+	
+somar_pares_impares:
+	; Y aponta para V0 (para buscar os pares: 0, 2, 4, 6)
+	LDI YL, LOW(V0)
+	LDI YH, HIGH(V0)
+	
+	; Z aponta para V1 (para buscar os ímpares: 1, 3, 5, 7)
+	LDI ZL, LOW(V1)
+	LDI ZH, HIGH(V1)
+	
+	; X aponta para V2 (onde vamos salvar os resultados)
+	LDI XL, LOW(V2)
+	LDI XH, HIGH(V2)
+	
+	LDD R16, Y+0                ; Pega V0[0]
+	LDD R17, Z+1                ; Pega V1[1]
+	ADD R16, R17                ; Soma
+	ST X+, R16                  ; Salva em V2[0] e avança X
+	
+	LDD R16, Y+2                ; Pega V0[2]
+	LDD R17, Z+3                ; Pega V1[3]
+	ADD R16, R17                ; Soma
+	ST X+, R16                  ; Salva em V2[1] e avança X
+	
+	LDD R16, Y+4                ; Pega V0[4]
+	LDD R17, Z+5                ; Pega V1[5]
+	ADD R16, R17                ; Soma
+	ST X+, R16                  ; Salva em V2[2] e avança X
+
+	LDD R16, Y+6                ; Pega V0[6]
+	LDD R17, Z+7                ; Pega V1[7]
+	ADD R16, R17                ; Soma
+	ST X+, R16                  ; Salva em V2[3] e avança X
+	
+	RET
+	
+	
+fim:
+    RJMP fim
+	
+	
