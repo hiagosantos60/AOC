@@ -1,4 +1,5 @@
 ; =====================================================================
+; =====================================================================
 ; C = A + B  (variáveis de 32 bits, little-endian)
 ;
 ; Quatro implementações, uma para cada modo de endereçamento:
