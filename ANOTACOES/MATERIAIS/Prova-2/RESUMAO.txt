@@ -15,7 +15,6 @@
  11. Sub-rotinas dos seus exercicios (init / zera / sub 32 bits)
  12. Armadilhas que caem em prova
  13. Simulador (MPLAB X)
- 14. Autoteste rapido (perguntas e respostas)
 ================================================================================
 
 
@@ -236,8 +235,8 @@ Dica de ouro: o endereco de uma variavel e o rotulo; o valor e o que esta la.
  | Modo           | Sintaxe            | Efeito                  | Ponteiro    |
  +----------------+--------------------+-------------------------+-------------+
  | 1 Direto       | LDS Rd,k           | Rd <- (k)               | nao usa     |
- |                | STS k,Rr           | (k) <- Rr               | (k = 0-65535)|
- | 2 Indireto     | LD Rd,X            | Rd <- (X)               | nao muda    |
+ |                | STS k,Rr           | (k) <- Rr               |(k = 0-65535)|
+ | 2 Indireto     | LD Rd,X            | Rd <- (X)               | nao muda    |\vi
  |                | ST X,Rr            | (X) <- Rr               |             |
  | 3 Pos-incr.    | LD Rd,X+           | Rd <- (X); X <- X+1     | +1 DEPOIS   |
  |                | ST X+,Rr           | (X) <- Rr; X <- X+1     |             |
@@ -848,41 +847,3 @@ Convencao: o programador carrega ponteiros/valores no MAIN antes do RCALL.
  - Editar valores nos registradores/SRAM para testar casos (ex.: forcar carry).
  - Conferir: PC, flags, ponteiros X/Y/Z depois de cada bloco; pare em breakpoint.
 
-
-================================================================================
- 14. AUTOTESTE RAPIDO
-================================================================================
- P: Qual a diferenca entre "LDS R16, A" e "LD R16, X" (X=LOW/HIGH de A)?
- R: LDS: endereco na propria instrucao (direto, 2 palavras). LD: endereco no
-    ponteiro X (indireto, 1 palavra).
- P: Por que usar INC XL e nao ADIW X,1 no meio de uma soma de 32 bits?
- R: ADIW altera o Carry; INC nao.
- P: Em 32 bits, qual instrucao no byte 0 e quais nos bytes 1-3?
- R: ADD (ou SUB) no byte 0; ADC (ou SBC) nos demais.
- P: Qual endereco tem o MSB de uma variavel de 4 bytes em 0x0108?
- R: 0x010B (little-endian: LSB em 0x0108).
- P: Que ponteiro nao aceita LDD/STD?
- R: X.
- P: Quantos bytes o RCALL coloca na pilha? E o PUSH?
- R: RCALL 2 (SP-2); PUSH 1 (SP-1).
- P: Valor inicial do SP no 328P? E o SPH/SPL no codigo?
- R: RAMEND = 0x08FF (SPH=0x08, SPL=0xFF). Inicialize com HIGH/LOW(RAMEND) via OUT.
- P: Ciclos de "dec r17 / brne loop" quando desvia? E na ultima volta?
- R: 1+2 = 3; ultima: 1+1 = 2. Laco de 256 voltas = 767 ciclos.
- P: Tempo de 197 119 ciclos a 16 MHz?
- R: 197 119 x 62,5 ns = 12,32 ms.
- P: Resultado de SUB com A < B no ultimo byte?
- R: Carry = 1 (borrow); o resultado e A-B+2^N (complemento).
- P: Por que POP na ordem inversa do PUSH?
- R: Pilha e LIFO: o ultimo que entrou e o primeiro que sai.
- P: Pos-incremento ou pre-decremento: qual atualiza o ponteiro antes do acesso?
- R: Pre-decremento (-X). Pos-incremento (X+) atualiza depois.
- P: Escreva "A = A + 1" em 16 bits sem INC.
- R: LDI R18,1 / CLR R19 / LD R16,X / ADD R16,R18 / ST X+,R16 / LD R16,X /
-    ADC R16,R19 / ST X,R16.
- P: Como somar 22 a um registrador sem ADDI?
- R: SUBI Rd,-22 (ou LDI R19,22 / ADD Rd,R19).
-
-================================================================================
- FIM  -  boa prova!
-================================================================================

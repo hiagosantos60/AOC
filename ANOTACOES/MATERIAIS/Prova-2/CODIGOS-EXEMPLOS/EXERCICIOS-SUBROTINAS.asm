@@ -12,6 +12,7 @@ C: .BYTE 4
 
 main:
     ; Inicializa a pilha (PARA USAR O RCALL / RET)
+    ; Essa parte é boa prática, o microcontrolador sabe onde é
     LDI  R16, HIGH(RAMEND)
     OUT  SPH, R16
     LDI  R16, LOW(RAMEND)
