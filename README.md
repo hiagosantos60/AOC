@@ -12,3 +12,6 @@ Sinta-se a vontade para utilizar dos materiais aqui presentes.
 - [08-09-2026](08-09-2026) - Iniciando com arquitetura AVR 
 - [09-09-2026](09-09-2026) - Iniciando com assembly AVR
 - [16-09-2026](16-09-2026) - Iniciando com registradores do AVR
+- [22-09-2026](22-09-2026) - Operação com array de 16 e 32 bits
+- [30-09-2026](30-09-2026) - Pilha e sub rotinas 
+- [13-10-2026](13-10-2026) - Registradores e I/O
