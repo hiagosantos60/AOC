@@ -1,0 +1,48 @@
+DDRx: registrador de direção, usado para definir se os pinos de Px são entrada ou saída.
+    - Decide o modo do pino, escolhe se é entrada ou saída
+PORTx: registrador de dados, usado para modificar os pinos de Px, quando configurados como saída, e habilitar o pull-up, quando configurados como entrada.
+    - Diz o que fazer nesse modo 
+PINx: registrador de entrada, usado para ler o estado dos pinos do Px.
+    - Observa o valor que está no pino de fato
+
+Bit:      7       6      5      4     3       2       1       0
+DDRB:    DDB7    DDB6   DDB5   DDB4   DDB3   DDB2    DDB1    DDB0   ← direção (entrada/saída)
+PORTB:   PORTB7  PORTB6 PORTB5 PORTB4 PORTB3 PORTB2  PORTB1  PORTB0 ← nível de saída
+PINB:    PINB7   PINB6  PINB5  PINB4  PINB3  PINB2   PINB1   PINB0  ← leitura do pino
+
+Quando utilizamos, por exemplo: 
+- sbi DDRB, PB5 ;configura o pino PB5 como saída
+
+No microcontrolador, estamos mexendo no bit de cada "porta"
+
+bit:            7  6  5  4  3  2  1  0
+DDRB:           ·  ·  ▓  ·  ·  ·  ·  ·    ← DDB5
+PORTB:          ·  ·  ▓  ·  ·  ·  ·  ·    ← PORTB5
+PINB:           ·  ·  ▓  ·  ·  ·  ·  ·    ← PINB5
+                      ↓
+                      pino PB5 (físico)
+
+Instruções que utilizamos para controle de pinos de entrada e saída:
+
+sbi  A, b	Set Bit in I/O:  põe o bit b do registrador A em 1	
+cbi  A, b	Clear Bit in I/O: põe o bit em 0
+sbic A, b	Skip if Bit in I/O is Clear: pula a próxima instrução se o bit for 0
+sbis A, b	Skip if Bit in I/O is Set: pula a próxima instrução se o bit for 1
+in   Rd, A	Lê o registrador de I/O A para o registrador Rd	
+out  A, Rr	Escreve Rr no registrador de I/O A	
+
+- sbi, cbi, sbic e sbis só funcionam com endereços de I/O de 0 a 31 (0x00–0x1F). PINB, DDRB, PORTB, PINC… PORTD estão todos nessa faixa (0x03 a 0x0B), então tudo bem.
+- in e out alcançam os 64 registradores (0–63), mas sempre passando por um registrador de uso geral (R0–R31).
+- sbi/cbi mexem só no bit indicado, sem alterar os outros 7 bits da porta. out sobrescreve a porta inteira.
+- escrever 1 em PINx inverte o bit correspondente em PORTx. Então sbi PINB, PB5 faz o LED alternar com uma instrução só.
+
+Configuração de pull-up:
+cbi DDRD, PD7     ; 1) pino como ENTRADA (DDR = 0)
+sbi PORTD, PD7    ; 2) liga o pull-up (PORT = 1)
+
+Porta	Pinos	   Quantos	Observação
+PORTB	PB0 a PB7	8	    PB6 e PB7 são os pinos do cristal (oscilador)
+PORTC	PC0 a PC6	7	    PC6 é o RESET; o bit 7 não existe
+PORTD	PD0 a PD7	8	    PD0 e PD1 são a serial (RX/TX)
+
+- Na prática, para os exercícios iniciais, os pinos mais “livres” são PB0 a PB5, PC0 a PC5 e PD2 a PD7
