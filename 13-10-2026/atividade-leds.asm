@@ -25,8 +25,28 @@
 .ORG 0x0000
     
 main:
-	
-	; TESTAR 
+
+    clr  r16
+    sts  count, r16          ; count = 0
+
+teste:
+    rcall botao_aperta       ; botão pressionado (bit 3 = 1)
+
+    sbi  GPIOR0, GPIOR07     ; LED1 ON
+    ldi  r19, 16             ; ~200 ms
+    rcall delay
+    cbi  GPIOR0, GPIOR07     ; LED1 OFF
+    ldi  r19, 16             ; ~200 ms
+    rcall delay
+
+    lds  r16, count          ; count++
+    inc  r16
+    sts  count, r16
+
+    rcall botao_solta        ; botão solto (bit 3 = 0)
+    ldi  r19, 80             ; ~1 s
+    rcall delay
+    rjmp teste
 	
     rjmp main           ; Volta ao início, nunca sai daqui
   
@@ -78,5 +98,3 @@ botao_solta:
 
 fim: 
   rjmp fim
-  
-  
