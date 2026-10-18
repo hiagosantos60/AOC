@@ -1,0 +1,5 @@
+Considerando o circuito abaixo, faça um fluxograma e um programa com o seguinte comportamento:
+
+Os 4 LEDs menos significativos devem apagar quando o botão ajuste estiver pressionado.
+Os 4 LEDs mais significativos devem apagar quando o botão seleção estiver pressionado.
+Os 8 LEDs devem ligar quando nenhum botão estiver pressionado.
