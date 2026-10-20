@@ -1,4 +1,5 @@
 ; =============================================================================================================
+; Enquanto um botão estiver pressionado, um LED pisca a cada 2s. O LED é ligado se o botão não estiver pressionado
 ; botão: 1 - Pressionado; 0 - Não pressionado.
 ; LEDx: 1 - ON; 0 - OFF
 ; Count: Utilize uma variável na SRAM
