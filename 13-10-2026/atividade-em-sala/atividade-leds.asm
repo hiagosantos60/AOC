@@ -49,7 +49,21 @@ teste:
     rjmp teste
 	
     rjmp main           ; Volta ao início, nunca sai daqui
-  
+
+;--------------------------------------------------------------
+; Sub Rotinas para verificar botão pressionado 
+; Vai alterar o bit 3 da GPIOR0 
+;--------------------------------------------------------------
+botao_aperta:
+  sbic GPIOR0, GPIOR03 		; Se o bit 3 = 0, pula o rjmp (vai para o sbi)
+  rjmp botao_solta		; Bit 3 = 1 (botão pressionado): desvia para soltar
+  sbi  GPIOR0, GPIOR03      	; Bit 3 era 0: seta para 1 (botão pressionado)
+  RET
+ 
+botao_solta:
+  cbi GPIOR0, GPIOR03		; Bit 3 era 1: zera (botão solto)
+  RET
+
     
 ;--------------------------------------------------------------
 ;SUB-ROTINA DE ATRASO Programável 
@@ -80,20 +94,6 @@ loop:
   pop r17         ; ... r17 da pilha
 
   ret
-  
-;--------------------------------------------------------------
-; Sub Rotinas para verificar botão pressionado 
-; Vai alterar o bit 3 da GPIOR0 
-;--------------------------------------------------------------
-botao_aperta:
-  sbic GPIOR0, GPIOR03 		; Se o bit 3 = 0, pula o rjmp (vai para o sbi)
-  rjmp botao_solta		; Bit 3 = 1 (botão pressionado): desvia para soltar
-  sbi  GPIOR0, GPIOR03      	; Bit 3 era 0: seta para 1 (botão pressionado)
-  RET
- 
-botao_solta:
-  cbi GPIOR0, GPIOR03		; Bit 3 era 1: zera (botão solto)
-  RET
   
 
 fim: 
