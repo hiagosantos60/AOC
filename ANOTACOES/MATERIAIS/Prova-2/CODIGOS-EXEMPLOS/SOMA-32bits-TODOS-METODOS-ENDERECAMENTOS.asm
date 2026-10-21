@@ -1,0 +1,264 @@
+; =====================================================================
+; C = A + B  (variáveis de 32 bits, little-endian)
+;
+; Quatro implementações, uma para cada modo de endereçamento:
+;   1) Direto                      (lds / sts)
+;   2) Indireto sem incrementar    (ld / st)
+;   3) Indireto com pós-incremento (ld X+ / st Z+)
+;   4) Indireto com deslocamento   (ldd / std)
+;
+; As 4 seções rodam em sequência. Antes de cada uma, C é zerado, então
+; dá para conferir que CADA modo calcula o resultado sozinho.
+; Sugestão: coloque um breakpoint em cada rótulo (modo1, modo2, ...)
+; e confira a SRAM no final de cada seção.
+;
+; Teste: A = 0x0001FFFF, B = 0x00000001  ->  C = 0x00020000
+; O carry precisa passar pelos bytes 0 e 1, por isso esses valores.
+; =====================================================================
+
+.INCLUDE <m328Pdef.inc>
+
+.DSEG
+.ORG SRAM_START             ; 0x0100 no ATmega328p
+A: .BYTE 4                  ; 0x0100 a 0x0103
+B: .BYTE 4                  ; 0x0104 a 0x0107
+C: .BYTE 4                  ; 0x0108 a 0x010B
+
+.CSEG
+.ORG 0x0000
+
+    ; --- SETUP: valores iniciais (little-endian) ---
+    ; A = 0x0001FFFF -> FF FF 01 00
+    LDI  R16, 0xFF
+    STS  A,   R16           ; A[0] = 0xFF
+    STS  A+1, R16           ; A[1] = 0xFF
+    LDI  R16, 0x01
+    STS  A+2, R16           ; A[2] = 0x01
+    LDI  R16, 0x00
+    STS  A+3, R16           ; A[3] = 0x00
+
+    ; B = 0x00000001 -> 01 00 00 00
+    LDI  R16, 0x01
+    STS  B,   R16           ; B[0] = 0x01
+    LDI  R16, 0x00
+    STS  B+1, R16           ; B[1] = 0x00
+    STS  B+2, R16           ; B[2] = 0x00
+    STS  B+3, R16           ; B[3] = 0x00
+
+
+; =====================================================================
+; MODO 1: DIRETO (lds / sts)
+; O endereço da variável vai escrito dentro da instrução. O operador +
+; do montador calcula o endereço de cada byte (A, A+1, A+2, A+3).
+; Não usa ponteiros.
+; =====================================================================
+modo1:
+    ; Zera C para provar que este modo calcula o resultado sozinho
+    CLR  R16
+    STS  C,   R16
+    STS  C+1, R16
+    STS  C+2, R16
+    STS  C+3, R16
+
+    ; Byte 0 (LSB): ADD, sem carry de entrada
+    LDS  R16, A             ; R16 = A[0]
+    LDS  R17, B             ; R17 = B[0]
+    ADD  R16, R17           ; R16 = A[0] + B[0]; gera Carry
+    STS  C, R16             ; C[0] = R16
+
+    ; Byte 1: ADC soma também o Carry do byte anterior
+    LDS  R16, A+1
+    LDS  R17, B+1
+    ADC  R16, R17           ; R16 = A[1] + B[1] + Carry
+    STS  C+1, R16
+
+    ; Byte 2
+    LDS  R16, A+2
+    LDS  R17, B+2
+    ADC  R16, R17
+    STS  C+2, R16
+
+    ; Byte 3 (MSB)
+    LDS  R16, A+3
+    LDS  R17, B+3
+    ADC  R16, R17
+    STS  C+3, R16
+
+
+; =====================================================================
+; MODO 2: INDIRETO SEM INCREMENTAR (ld / st)
+; Três ponteiros: X -> A, Y -> B, Z -> C.
+; ld/st não mexem no ponteiro, então avançamos cada um com INC no low.
+; Usamos INC e não ADIW porque o ADIW altera o Carry e estragaria a
+; soma. O INC não altera o Carry. É seguro porque o byte baixo dos
+; endereços (0x00 a 0x0B) nunca estoura.
+; =====================================================================
+modo2:
+    ; Zera C
+    CLR  R16
+    STS  C,   R16
+    STS  C+1, R16
+    STS  C+2, R16
+    STS  C+3, R16
+
+    ; Aponta cada ponteiro para o primeiro byte da variável
+    LDI  XL, LOW(A)         ; X = 0x0100
+    LDI  XH, HIGH(A)
+    LDI  YL, LOW(B)         ; Y = 0x0104
+    LDI  YH, HIGH(B)
+    LDI  ZL, LOW(C)         ; Z = 0x0108
+    LDI  ZH, HIGH(C)
+
+    ; Byte 0
+    LD   R16, X             ; R16 = A[0]
+    LD   R17, Y             ; R17 = B[0]
+    ADD  R16, R17
+    ST   Z, R16             ; C[0]
+    INC  XL                 ; X -> A[1]  (não altera o Carry)
+    INC  YL                 ; Y -> B[1]
+    INC  ZL                 ; Z -> C[1]
+
+    ; Byte 1
+    LD   R16, X
+    LD   R17, Y
+    ADC  R16, R17
+    ST   Z, R16             ; C[1]
+    INC  XL
+    INC  YL
+    INC  ZL
+
+    ; Byte 2
+    LD   R16, X
+    LD   R17, Y
+    ADC  R16, R17
+    ST   Z, R16             ; C[2]
+    INC  XL
+    INC  YL
+    INC  ZL
+
+    ; Byte 3 (MSB): não precisa avançar mais
+    LD   R16, X
+    LD   R17, Y
+    ADC  R16, R17
+    ST   Z, R16             ; C[3]
+
+
+; =====================================================================
+; MODO 3: INDIRETO COM PÓS-INCREMENTO (ld X+ / st Z+)
+; O "+" depois do ponteiro faz ele avançar sozinho DEPOIS do acesso.
+; Some o INC: o código fica mais curto e cada bloco é idêntico.
+; No último byte usamos o ponteiro sem "+", pois não há próximo byte.
+; =====================================================================
+modo3:
+    ; Zera C
+    CLR  R16
+    STS  C,   R16
+    STS  C+1, R16
+    STS  C+2, R16
+    STS  C+3, R16
+
+    LDI  XL, LOW(A)         ; X = 0x0100
+    LDI  XH, HIGH(A)
+    LDI  YL, LOW(B)         ; Y = 0x0104
+    LDI  YH, HIGH(B)
+    LDI  ZL, LOW(C)         ; Z = 0x0108
+    LDI  ZH, HIGH(C)
+
+    ; Byte 0
+    LD   R16, X+            ; R16 = A[0], depois X = 0x0101
+    LD   R17, Y+            ; R17 = B[0], depois Y = 0x0105
+    ADD  R16, R17
+    ST   Z+, R16            ; C[0] = R16, depois Z = 0x0109
+
+    ; Byte 1
+    LD   R16, X+            ; depois X = 0x0102
+    LD   R17, Y+            ; depois Y = 0x0106
+    ADC  R16, R17
+    ST   Z+, R16            ; depois Z = 0x010A
+
+    ; Byte 2
+    LD   R16, X+            ; depois X = 0x0103
+    LD   R17, Y+            ; depois Y = 0x0107
+    ADC  R16, R17
+    ST   Z+, R16            ; depois Z = 0x010B
+
+    ; Byte 3 (MSB): sem "+", os ponteiros ficam no último byte
+    LD   R16, X             ; X continua 0x0103
+    LD   R17, Y             ; Y continua 0x0107
+    ADC  R16, R17
+    ST   Z, R16             ; Z continua 0x010B
+
+
+; =====================================================================
+; MODO 4: INDIRETO COM DESLOCAMENTO (ldd / std)
+; Um único ponteiro Y aponta para A e NUNCA muda. O endereço efetivo
+; é Y + q, onde q é uma constante de 0 a 63:
+;   A -> Y+0 .. Y+3
+;   B -> Y+4 .. Y+7
+;   C -> Y+8 .. Y+11
+; Só Y e Z aceitam ldd/std (X não tem deslocamento).
+; =====================================================================
+modo4:
+    ; Zera C
+    CLR  R16
+    STS  C,   R16
+    STS  C+1, R16
+    STS  C+2, R16
+    STS  C+3, R16
+
+    LDI  YL, LOW(A)         ; Y = 0x0100 (início de A)
+    LDI  YH, HIGH(A)
+
+    ; Byte 0
+    LDD  R16, Y+0           ; R16 = A[0]  (0x0100)
+    LDD  R17, Y+4           ; R17 = B[0]  (0x0104)
+    ADD  R16, R17
+    STD  Y+8, R16           ; C[0]        (0x0108)
+
+    ; Byte 1
+    LDD  R16, Y+1           ; A[1]
+    LDD  R17, Y+5           ; B[1]
+    ADC  R16, R17
+    STD  Y+9, R16           ; C[1]
+
+    ; Byte 2
+    LDD  R16, Y+2           ; A[2]
+    LDD  R17, Y+6           ; B[2]
+    ADC  R16, R17
+    STD  Y+10, R16          ; C[2]
+
+    ; Byte 3 (MSB)
+    LDD  R16, Y+3           ; A[3]
+    LDD  R17, Y+7           ; B[3]
+    ADC  R16, R17
+    STD  Y+11, R16          ; C[3]
+
+fim:
+    RJMP fim                ; Loop infinito para parar a execução
+
+
+; =====================================================================
+; ACOMPANHAMENTO (vale para os 4 modos)
+;
+;  Byte | A  | B  | Conta        | C  | Carry
+;  -----+----+----+--------------+----+------
+;    0  | FF | 01 | FF + 01      | 00 |  1
+;    1  | FF | 00 | FF + 00 + 1  | 00 |  1
+;    2  | 01 | 00 | 01 + 00 + 1  | 02 |  0
+;    3  | 00 | 00 | 00 + 00 + 0  | 00 |  0
+;
+; SRAM no final de CADA modo:
+;   0x0108 = 00   0x0109 = 00   0x010A = 02   0x010B = 00
+;   -> C = 0x00020000 (little-endian)
+;
+; Ponteiros ao final:
+;   Modo 2: X = 0x0103, Y = 0x0107, Z = 0x010B (avançados com INC)
+;   Modo 3: X = 0x0103, Y = 0x0107, Z = 0x010B (avançados com "+")
+;   Modo 4: Y = 0x0100 (nunca mudou)
+;
+; RESUMO DOS MODOS
+;   Direto       : endereço na instrução; simples, mas 1 endereço por byte
+;   Indireto     : ponteiro fixo; você avança na mão (INC)
+;   Pós-incr.    : ponteiro avança sozinho; ideal para loops/vetores
+;   Deslocamento : ponteiro parado + constante q; ideal para campos fixos
+; =====================================================================
