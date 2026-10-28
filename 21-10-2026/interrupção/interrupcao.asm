@@ -10,6 +10,7 @@
 ;   1 = saída
 ; 
 ; Os LEDs ligam com "0" e desligam com "1"
+; Botão "0" é pressionado, "1" é solto
 ;--------------------------------------------
     
 .INCLUDE <m328pdef.INC>

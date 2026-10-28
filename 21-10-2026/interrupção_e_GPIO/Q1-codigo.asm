@@ -81,32 +81,3 @@ ATUALIZA_VALOR:
     ldi r19, 2		
     rcall delay		    ; chamada do delay
     rjmp SET_VALORES	    ; atualiza os valores dos PORTx
-
-;--------------------------------------------------------------
-;SUB-ROTINA DE ATRASO Programável
-; Depende do valor de R19 carregado antes da chamada.
-; Ex.: - R19 = 16 --> 200ms
-;      - R19 = 80 --> 1s
-;--------------------------------------------------------------
-delay:
-  push r17
-  push r18
-  in r17,SREG
-  push r17
-
-  clr r17
-  clr r18
-loop:
-  dec  R17
-  brne loop
-  dec  R18
-  brne loop
-  dec  R19
-  brne loop
-
-  pop r17
-  out SREG, r17
-  pop r18
-  pop r17
-
-  ret
