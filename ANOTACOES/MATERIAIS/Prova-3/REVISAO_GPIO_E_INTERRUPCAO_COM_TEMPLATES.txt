@@ -1,0 +1,666 @@
+================================================================================
+GUIA DE REVISAO - GPIO E INTERRUPCOES EXTERNAS (AVR ATmega328P)
+Materia: Arquitetura e Organizacao de Computadores (AOC)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. COMO MEXER NAS PORTAS (GPIO) DIRETAMENTE
+--------------------------------------------------------------------------------
+
+Para cada porta fisica (Porta B, C e D), existem 3 registradores de 8 bits:
+
+  1. DDRx (Data Direction Register) - Define a DIRECAO:
+     - Bit = 0: Pino eh configurado como ENTRADA (Input).
+     - Bit = 1: Pino eh configurado como SAIDA (Output).
+
+  2. PORTx (Port Output Data Register) - Define o DADO DE SAIDA ou PULL-UP:
+     - Se o pino for SAIDA (DDR = 1):
+         * Bit = 0: Pino em 0V (GND).
+         * Bit = 1: Pino em 5V (VCC).
+     - Se o pino for ENTRADA (DDR = 0):
+         * Bit = 0: Resistor de Pull-up interno DESLIGADO (alta impedancia).
+         * Bit = 1: Resistor de Pull-up interno LIGADO (puxa para 5V).
+
+  3. PINx (Input Pins Address) - LEITURA FISICA:
+     - Registrador somente de LEITURA.
+     - Bit = 0: Tensão no pino fisico esta em 0V.
+     - Bit = 1: Tensão no pino fisico esta em 5V.
+     * REGRA: Para ler botoes, teste sempre o registrador PINx, NUNCA o PORTx!
+
+COMO MANIPULAR:
+- Bit a bit (apenas 1 pino):
+    sbi DDRB, PB0     ; Coloca 1 no PB0 (define como saida)
+    cbi DDRD, PD2     ; Coloca 0 no PD2 (define como entrada)
+    sbic PIND, PD2    ; Pula a proxima linha se PD2 estiver em 0 (pressionado)
+    sbis PIND, PD2    ; Pula a proxima linha se PD2 estiver em 1 (solto)
+
+- A porta inteira (8 pinos de uma vez):
+    ldi r16, 0b00001111
+    out DDRB, r16     ; Configura PB0..PB3 como saida e PB4..PB7 como entrada
+    out PORTB, r16    ; Escreve nos 8 pinos de PB
+    in  r16, PIND     ; Le os 8 pinos da porta D para o registrador r16
+
+COMO CONFIGURAR BOTAO COM PULL-UP INTERNO:
+    cbi DDRD, PD2     ; DDR = 0 -> Define PD2 como Entrada
+    sbi PORTD, PD2    ; PORT = 1 (com DDR=0) -> Ativa o Pull-up interno
+    
+    Logica resultante (invertida):
+    * Botao SOLTO: resistor mantem em 5V -> leitura no PINx eh 1.
+    * Botao PRESSIONADO: fecha circuito com GND -> leitura no PINx eh 0.
+
+
+--------------------------------------------------------------------------------
+2. A RELACAO ENTRE INTERRUPCAO E GPIO
+--------------------------------------------------------------------------------
+
+A interrupcao externa depende 100% da configuracao do GPIO:
+1. Os pinos de interrupcao externa sao pinos fisicos normais:
+   - INT0 fica fixo no pino PD2.
+   - INT1 fica fixo no pino PD3.
+
+2. Se esses pinos nao forem configurados como entrada (cbi DDRD, PDx) com pull-up
+   ligado (sbi PORTD, PDx), a linha eletrica fica flutuando no ar, gerando
+   ruido eletromagnetico e disparando centenas de falsas interrupcoes.
+
+3. Registradores da Interrupcao:
+   - EICRA (External Interrupt Control Register A) - Sensibilidade de Disparo:
+       * Endereco: 0x69 (Memoria I/O Estendida -> SEMPRE usar STS, NUNCA out!)
+       
+       LAYOUT DE BITS DO EICRA:
+       +-------+-------+-------+-------+-------+-------+-------+-------+
+       | Bit 7 | Bit 6 | Bit 5 | Bit 4 | Bit 3 | Bit 2 | Bit 1 | Bit 0 |
+       +-------+-------+-------+-------+-------+-------+-------+-------+
+       |   0   |   0   |   0   |   0   | ISC11 | ISC10 | ISC01 | ISC00 |
+       +-------+-------+-------+-------+-------+-------+-------+-------+
+       | <------- Reservados --------> | <--- INT1 (PD3) -> | <-- INT0 (PD2) -->|
+
+       TABELA DE MODOS (ISCn1 : ISCn0):
+       +------+-----------------------------+------------------------------------+
+       | Bits | Modo de Disparo             | Quando dispara (c/ Pull-up interno)|
+       +------+-----------------------------+------------------------------------+
+       |  00  | Nivel baixo (Low level)     | Enquanto o botao for mantido em 0V |
+       |  01  | Qualquer mudanca logica     | Ao APERTAR e ao SOLTAR (Toggle)    |
+       |  10  | Borda de descida (Falling)  | Ao APERTAR o botao (5V -> 0V)      |
+       |  11  | Borda de subida (Rising)    | Ao SOLTAR o botao (0V -> 5V)       |
+       +------+-----------------------------+------------------------------------+
+
+       COLA RAPIDA DE BINARIOS PARA A PROVA (Monte seu ldi AUX, 0b...):
+       -------------------------------------------------------------------------
+       Disparo desejado                     | Binario para EICRA | Hex
+       -------------------------------------+--------------------+--------------
+       [Apenas INT0 - Pino PD2]             |                    |
+       - INT0 ao apertar (borda descida)    | 0b00000010         | 0x02
+       - INT0 ao soltar (borda subida)      | 0b00000011         | 0x03
+       - INT0 aperto + soltura (qualquer)   | 0b00000001         | 0x01
+       - INT0 nivel baixo mantido           | 0b00000000         | 0x00
+       -------------------------------------+--------------------+--------------
+       [Apenas INT1 - Pino PD3]             |                    |
+       - INT1 ao apertar (borda descida)    | 0b00001000         | 0x08
+       - INT1 ao soltar (borda subida)      | 0b00001100         | 0x0C
+       - INT1 aperto + soltura (qualquer)   | 0b00000100         | 0x04
+       - INT1 nivel baixo mantido           | 0b00000000         | 0x00
+       -------------------------------------+--------------------+--------------
+       [Combinacoes com os dois pinos]      |                    |
+       - Ambos ao apertar (descida/descida) | 0b00001010         | 0x0A (Questao 2)
+       - Ambos ao soltar (subida/subida)    | 0b00001111         | 0x0F
+       - Ambos em qualquer mudanca          | 0b00000101         | 0x05
+       - INT1 qualquer + INT0 descida       | 0b00000110         | 0x06
+       - INT1 descida  + INT0 subida        | 0b00001011         | 0x0B
+       - INT1 subida   + INT0 descida       | 0b00001110         | 0x0E
+       -------------------------------------------------------------------------
+       Exemplo de configuracao no codigo:
+           ldi r16, 0b00001010   ; Seta borda de descida para INT1 e INT0
+           sts EICRA, r16        ; OBRIGATORIO ser STS!
+
+   - EIMSK (External Interrupt Mask Register - Habilitacao dos Canais):
+       * sbi EIMSK, INT0   ; Habilita a interrupcao externa INT0 (PD2)
+       * sbi EIMSK, INT1   ; Habilita a interrupcao externa INT1 (PD3)
+   - Chave Global:
+       * sei               ; Habilita interrupcoes globais (liga bit I do SREG)
+       * reti              ; Retorno de interrupcao (reabilita bit I e desempilha PC)
+
+
+================================================================================
+3. QUESTAO 1: CODIGO ASSEMBLY AVR (ABORDAGEM POR POLLING / GPIO)
+================================================================================
+Enunciado:
+- Inicialize os GPIOs adequadamente.
+- Botao INC/DEC pressionado: incrementa Porta B (0 a 15) e decrementa Porta C (15 a 0).
+- Botao RST pressionado: zera Porta B (0) e coloca 15 na Porta C.
+
+---------------------------------- CODIGO --------------------------------------
+.INCLUDE <m328pdef.inc>
+
+; --- Definicoes de Pinos e Registradores ---
+.equ RST    = PD2
+.equ BT_INC = PD3
+.def AUX    = r16
+.def AUX2   = r17
+
+; --- Variaveis na SRAM ---
+.DSEG
+count_b: .byte 1
+count_c: .byte 1
+
+; --- Segmento de Codigo ---
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+
+SETUP:
+    ; 1. Botões como Entrada com Pull-up interno
+    cbi DDRD, RST
+    sbi PORTD, RST
+    cbi DDRD, BT_INC
+    sbi PORTD, BT_INC
+
+    ; 2. PORTB e PORTC como Saida (bits 0 a 3, cobrindo de 0 a 15)
+    ldi AUX, 0b00001111
+    out DDRB, AUX
+    out DDRC, AUX
+
+SET_PADRAO:
+    ldi AUX, 0
+    sts count_b, AUX
+    ldi AUX, 15
+    sts count_c, AUX
+
+ATUALIZA_LEDS:
+    lds AUX, count_b
+    out PORTB, AUX
+    lds AUX, count_c
+    out PORTC, AUX
+
+MAIN:
+    ; 1. Testa se o botao RST foi pressionado (0 = pressionado)
+    sbis PIND, RST              ; Se estiver solto (1), pula a instrucao seguinte
+    rjmp TRATA_RESET            ; Se estiver pressionado (0), executa o reset
+
+    ; 2. Testa se o botao INC/DEC foi pressionado
+    sbic PIND, BT_INC           ; Se estiver pressionado (0), pula
+    rjmp MAIN                   ; Se estiver solto (1), volta pro loop MAIN
+
+    ; --- Logica quando INC/DEC foi pressionado ---
+    lds AUX, count_b
+    cpi AUX, 15                 ; B ja atingiu o maximo (15)?
+    breq ESPERA_SOLTAR          ; Se sim, nao incrementa
+
+    lds AUX2, count_c
+    cpi AUX2, 0                 ; C ja atingiu o minimo (0)?
+    breq ESPERA_SOLTAR          ; Se sim, nao decrementa
+
+    inc AUX                     ; Incrementa B
+    sts count_b, AUX
+    dec AUX2                    ; Decrementa C
+    sts count_c, AUX2
+
+    rcall ATUALIZA_LEDS
+
+ESPERA_SOLTAR:
+    ; Trava/Debounce: segura aqui ate o usuario soltar o botao
+    ; Sem isso, o clock de 16MHz dispararia contagens seguidas em um unico clique!
+    sbis PIND, BT_INC           ; Se soltou (1), pula o salto
+    rjmp ESPERA_SOLTAR          ; Enquanto pressionado (0), fica no loop
+    rjmp MAIN
+
+TRATA_RESET:
+    rcall SET_PADRAO
+ESPERA_SOLTAR_RST:
+    sbis PIND, RST              ; Espera soltar o botao de Reset
+    rjmp ESPERA_SOLTAR_RST
+    rjmp MAIN
+--------------------------------------------------------------------------------
+
+
+================================================================================
+4. QUESTAO 2: CODIGO ASSEMBLY AVR (ABORDAGEM POR INTERRUPCAO EXTERNA)
+================================================================================
+Enunciado:
+- Botao INC/DEC (PD3 - INT1) e RST (PD2 - INT0) como interrupcoes externas.
+- Cada vez que o botao INC/DEC for PRESSIONADO: incrementa Porta B (0 a 15) e decremente Porta C (15 a 0).
+- Cada vez que o botao RST for PRESSIONADO: zera Porta B (0) e coloca 15 na Porta C.
+- Intervalos: B (0 a 15) e C (15 a 0).
+- Variaveis count_b e count_c na SRAM.
+
+Configuracao do EICRA:
+- Como ambos os botoes agem ao serem PRESSIONADOS com pull-up interno (5V -> 0V):
+  * INT0 (PD2 - RST): Borda de descida (10) -> ISC01=1, ISC00=0
+  * INT1 (PD3 - INC/DEC): Borda de descida (10) -> ISC11=1, ISC10=0
+- Valor do registrador EICRA = 0b0000 10 10 (0x0A)
+
+REGRA FUNDAMENTAL DE PROVA:
+- NUNCA se confere o estado do pino (sbic/sbis PIND) dentro de uma ISR!
+- A interrupcao serve justamente para eliminar essa checagem por software.
+- Se o professor pedir para agir ao pressionar, basta configurar Borda de Descida 
+  (10) no EICRA. Quando a CPU desviar para a ISR, o evento ja ocorreu com 100% 
+  de certeza via hardware.
+
+---------------------------------- CODIGO --------------------------------------
+.INCLUDE <m328pdef.inc>
+
+.equ RST    = PD2       ; Pino fisico de INT0
+.equ BT_INC = PD3       ; Pino fisico de INT1
+.def AUX    = r16
+.def AUX2   = r17
+
+; --- Segmento de Dados na SRAM ---
+.DSEG
+count_b: .byte 1
+count_c: .byte 1
+
+; --- Segmento de Codigo e Vetores de Interrupcao ---
+.CSEG
+.ORG 0x0000
+    rjmp SETUP          ; Vetor de Reset
+
+.ORG 0x0002
+    rjmp ISR_INT0_RST   ; Vetor de INT0 (PD2 - Botao RST)
+
+.ORG 0x0004
+    rjmp ISR_INT1_INCDEC; Vetor de INT1 (PD3 - Botao INC/DEC)
+
+SETUP:
+    ; 1. GPIO: Configura botões como entrada com pull-up
+    cbi DDRD, RST
+    sbi PORTD, RST
+    cbi DDRD, BT_INC
+    sbi PORTD, BT_INC
+
+    ; 2. GPIO: Configura PORTB e PORTC como saída
+    ldi AUX, 0b00001111
+    out DDRB, AUX
+    out DDRC, AUX
+
+    ; 3. Interrupcao: Configura sensibilidade no EICRA
+    ; Ambos configurados para Borda de Descida (10) = ao apertar o botao
+    ; INT1 = 10 | INT0 = 10 -> 0b0000 10 10 (0x0A)
+    ldi AUX, 0b00001010
+    sts EICRA, AUX      ; ATENCAO: EICRA exige STS!
+
+    ; 4. Interrupcao: Habilita canais INT0 e INT1
+    sbi EIMSK, INT0
+    sbi EIMSK, INT1
+
+    ; 5. Inicializa variaveis na SRAM e mostra nos PORTs
+    ldi AUX, 0
+    sts count_b, AUX
+    out PORTB, AUX
+
+    ldi AUX, 15
+    sts count_c, AUX
+    out PORTC, AUX
+
+    ; 6. Habilita a chave de interrupcoes globais
+    sei
+
+MAIN:
+    ; Loop principal vazio: a CPU fica livre, quem trabalha eh o hardware
+    rjmp MAIN
+
+
+; ==============================================================================
+; ISR INT1: BOTAO INC/DEC (PD3 - Dispara na Borda de Descida / Pressionar)
+; ==============================================================================
+ISR_INT1_INCDEC:
+    ; 1. Salvar Contexto na Pilha
+    push AUX
+    in AUX, SREG
+    push AUX
+    push AUX2
+
+    ; 2. Logica direta (SEM conferir PIND! Disparo garantido pelo hardware)
+    ; Incrementa B se menor que 15:
+    lds AUX, count_b
+    cpi AUX, 15
+    breq TESTA_C        ; Se ja for 15, nao altera B
+    inc AUX
+    sts count_b, AUX
+    out PORTB, AUX
+
+TESTA_C:
+    ; Decrementa C se maior que 0:
+    lds AUX2, count_c
+    cpi AUX2, 0
+    breq FIM_ISR1       ; Se ja for 0, nao altera C
+    dec AUX2
+    sts count_c, AUX2
+    out PORTC, AUX2
+
+FIM_ISR1:
+    ; 3. Restaurar Contexto da Pilha (em ordem inversa)
+    pop AUX2
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti                ; Retorna da interrupcao e reativa interrupcoes
+
+
+; ==============================================================================
+; ISR INT0: BOTAO RESET (PD2 - Dispara na Borda de Descida / Pressionar)
+; ==============================================================================
+ISR_INT0_RST:
+    push AUX
+    in AUX, SREG
+    push AUX
+
+    ; Zera B
+    ldi AUX, 0
+    sts count_b, AUX
+    out PORTB, AUX
+
+    ; Seta C para 15
+    ldi AUX, 15
+    sts count_c, AUX
+    out PORTC, AUX
+
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti                ; Retorno da interrupcao
+--------------------------------------------------------------------------------
+
+
+================================================================================
+5. RESUMO COMPARATIVO (POLLING vs INTERRUPCAO)
+================================================================================
+
+Caracteristica        | Questao 1 (Polling / GPIO)  | Questao 2 (Interrupcao)
+----------------------+-----------------------------+---------------------------
+Pinos usados          | Qualquer pino de I/O        | Pinos fixos (PD2=INT0, PD3=INT1)
+Ocupacao da CPU       | 100% no loop lendo pinos    | 0% (loop fica livre rjmp MAIN)
+Configuracao extra    | Apenas DDR e PORT           | EICRA (sts), EIMSK (sbi), sei
+Deteccao press/solta  | Laco sbis/sbic no codigo    | Hardware no EICRA (sem ler pino na ISR!)
+Retorno da rotina     | rjmp / ret                  | OBRIGATORIAMENTE reti
+Contexto              | Nao precisa salvar SREG     | OBRIGATORIO salvar SREG na pilha
+================================================================================
+
+
+================================================================================
+6. TEMPLATES DE CODIGO PARA A PROVA (ESQUELETOS PRONTOS PARA COPIAR E USAR)
+================================================================================
+Use estes templates como ponto de partida rapido dependendo da abordagem exigida.
+
+
+--------------------------------------------------------------------------------
+TEMPLATE 1: ABORDAGEM POR POLLING (VERIFICACAO CONTINUA NO LOOP / GPIO PURO)
+--------------------------------------------------------------------------------
+Quando usar:
+- Quando o enunciado pedir para verificar botoes continuamente via software.
+- Nao ha vetores de interrupcao nem instrucao 'sei'.
+- A CPU fica 100% presa no loop 'MAIN' lendo os pinos com sbic/sbis.
+
+; ==============================================================================
+.INCLUDE <m328pdef.inc>
+
+; --- 1. Definicoes e Apelidos ---
+.def AUX  = r16
+.def AUX2 = r17
+.equ BOTAO1 = PD2       ; Entrada (ex: Botao 1)
+.equ BOTAO2 = PD3       ; Entrada (ex: Botao 2)
+.equ LED    = PB0       ; Saida (ex: LED ou pino qualquer)
+
+; --- 2. Variaveis na SRAM (opcional, use se a questao pedir dados na memoria) ---
+.DSEG
+contador: .byte 1
+
+; --- 3. Codigo Principal ---
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+
+SETUP:
+
+    ; --- Configura Entradas com Pull-up interno (cbi DDR, sbi PORT) ---
+    cbi DDRD, BOTAO1    ; Define pino como Entrada (DDR=0)
+    sbi PORTD, BOTAO1   ; Ativa Pull-up interno (PORT=1)
+    cbi DDRD, BOTAO2
+    sbi PORTD, BOTAO2
+
+    ; --- Configura Saidas (sbi DDR para 1 pino ou ldi+out para a porta toda) ---
+    sbi DDRB, LED       ; PB0 como saida (DDR=1)
+    ; ldi AUX, 0b00001111 ; Caso queira bits 0 a 3 como saida
+    ; out DDRB, AUX
+
+    ; --- Inicializacao de variaveis ou estados iniciais ---
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX      ; Comeca com saida zerada
+
+MAIN:
+    ; -------------------------------------------------------------------------
+    ; TESTE DO BOTAO 1:
+    ; Lembrar da logica do pull-up:
+    ;   0 = Botao Pressionado (conectou ao GND)
+    ;   1 = Botao Solto (puxado pelo resistor de pull-up a 5V)
+    ; -------------------------------------------------------------------------
+    sbic PIND, BOTAO1       ; Se estiver em 0 (pressionado), pula a linha abaixo
+    rjmp TESTA_BOTAO2       ; Se estiver em 1 (solto), salta pro proximo teste
+
+    ; >> ACAO AO DETECTAR O BOTAO 1 PRESSIONADO <<
+    ; Exemplo: incrementar contador ou ligar LED
+    lds AUX, contador
+    inc AUX
+    sts contador, AUX
+    out PORTB, AUX
+
+ESPERA_SOLTAR_BT1:
+    ; TRAVA DE DEBOUNCE: Impede que 1 clique dispare milhares de vezes no clock
+    sbis PIND, BOTAO1       ; Se soltou (1), pula a instrucao seguinte
+    rjmp ESPERA_SOLTAR_BT1  ; Enquanto estiver apertado (0), fica segurando aqui
+
+TESTA_BOTAO2:
+    sbic PIND, BOTAO2       ; Se pressionou BOTAO2 (0), pula
+    rjmp FIM_LOOP           ; Se solto (1), vai pro fim do loop
+
+    ; >> ACAO AO DETECTAR O BOTAO 2 PRESSIONADO <<
+    ; Exemplo: zerar contador ou desligar LED
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+ESPERA_SOLTAR_BT2:
+    sbis PIND, BOTAO2       ; Espera o usuario soltar o BOTAO2
+    rjmp ESPERA_SOLTAR_BT2
+
+FIM_LOOP:
+    rjmp MAIN               ; Reinicia o ciclo de verificacao
+; ==============================================================================
+
+
+
+--------------------------------------------------------------------------------
+TEMPLATE 2: ABORDAGEM POR INTERRUPCAO EXTERNA (INT0 / INT1 / ISR)
+--------------------------------------------------------------------------------
+Quando usar:
+- Quando o enunciado citar "interrupcao externa", "vetores", "EICRA" ou "ISR".
+- Os pinos DEVEM ser PD2 (INT0) e/ou PD3 (INT1).
+- O loop MAIN fica livre (rjmp MAIN), a CPU so age quando o hardware chama a ISR.
+
+; ==============================================================================
+.INCLUDE <m328pdef.inc>
+
+; --- 1. Definicoes e Apelidos ---
+.def AUX  = r16
+.def AUX2 = r17
+.equ BT_INT0 = PD2      ; INT0 eh obrigatoriamente PD2
+.equ BT_INT1 = PD3      ; INT1 eh obrigatoriamente PD3
+
+; --- 2. Variaveis na SRAM ---
+.DSEG
+contador: .byte 1
+
+; --- 3. Tabela de Vetores de Interrupcao (INICIO DA FLASH) ---
+.CSEG
+.ORG 0x0000
+    rjmp SETUP          ; Vetor 0: Reset da CPU
+
+.ORG 0x0002
+    rjmp ISR_INT0       ; Vetor 1: Interrupcao Externa INT0 (PD2)
+
+.ORG 0x0004
+    rjmp ISR_INT1       ; Vetor 2: Interrupcao Externa INT1 (PD3)
+
+SETUP:
+    ; --- 1. GPIO: Configurar pinos de interrupcao como Entrada com Pull-up ---
+    cbi DDRD, BT_INT0	; define com entrada, valor 0
+    sbi PORTD, BT_INT0  ; ativa o pull-up
+    cbi DDRD, BT_INT1
+    sbi PORTD, BT_INT1
+
+    ; --- 2. GPIO: Configurar Saidas ---
+    ldi AUX, 0b00001111 ; PB0..PB3 como saida
+    out DDRB, AUX
+
+    ; --- 3. Interrupcao: Configurar EICRA (Sensibilidade de Disparo) ---
+    ; Consulte a cola de binarios da Secao 2 do guia!
+    ; Exemplo: INT1 e INT0 ambos na borda de descida (ao pressionar):
+    ldi AUX, 0b00001010
+    sts EICRA, AUX      ; ATENCAO: EICRA exige STS (endereco estendido 0x69)!
+
+    ; --- 4. Interrupcao: Habilitar os pinos na Mascara (EIMSK) ---
+    sbi EIMSK, INT0     ; Liga INT0
+    sbi EIMSK, INT1     ; Liga INT1
+
+    ; --- 5. Estado Inicial das variaveis/saidas ---
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+    ; --- 6. Habilitar a Chave Geral de Interrupcoes ---
+    sei                 ; Seta o bit I no SREG (Global Interrupt Enable)
+
+MAIN:
+    ; O processador nao precisa gastar tempo checando botoes:
+    rjmp MAIN           ; Loop ocioso aguardando interrupcoes
+
+
+; ==============================================================================
+; ISR INT0 - Executada automaticamente no disparo de PD2
+; ==============================================================================
+ISR_INT0:
+    ; --- 1. Salvar Contexto na Pilha (OBRIGATORIO EM PROVA) ---
+    push AUX
+    in AUX, SREG
+    push AUX
+    ; push AUX2         ; Salve se for usar AUX2 dentro desta rotina
+
+    ; --- 2. Logica da Interrupcao INT0 ---
+    ; (Coloque aqui o que o professor pediu ao disparar INT0)
+    ; Exemplo: zerar contador
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+    ; --- 3. Restaurar Contexto da Pilha (na ordem inversa) ---
+    ; pop AUX2
+    pop AUX
+    out SREG, AUX       ; Restaura as flags do processador
+    pop AUX
+    reti                ; OBRIGATORIO: Retorna da ISR e reabilita interrupcoes
+
+
+; ==============================================================================
+; ISR INT1 - Executada automaticamente no disparo de PD3
+; ==============================================================================
+ISR_INT1:
+    ; --- 1. Salvar Contexto na Pilha ---
+    push AUX
+    in AUX, SREG
+    push AUX
+
+    ; --- 2. Logica da Interrupcao INT1 ---
+    ; REGRA DE OURO: NUNCA use sbic/sbis PIND dentro de uma ISR!
+    ; O hardware so salta para ca quando o evento configurado no EICRA ocorre.
+    ; Se configurou para Borda de Descida (10), o evento eh garantido ao pressionar:
+    lds AUX, contador
+    inc AUX
+    sts contador, AUX
+    out PORTB, AUX
+
+    ; --- 3. Restaurar Contexto ---
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti
+================================================================================
+
+
+================================================================================
+7. CATALOGO DAS INSTRUCOES AVR MAIS USADAS (CONSULTA RAPIDA DE PROVA)
+================================================================================
+
+TABELA RESUMO DE 1 LINHA:
+--------------------------------------------------------------------------------
+Comando  | Sintaxe             | O que faz                      | Restricao / Pegadinha
+---------+---------------------+--------------------------------+----------------------------------------
+LDI      | ldi Rd, K           | Carrega imediato no reg        | SOMENTE R16 a R31 (nunca R0..R15!)
+MOV      | mov Rd, Rr          | Copia registrador Rr em Rd     | R0 a R31
+MOVW     | movw Rd+1:Rd, Rr+1  | Copia par de 16 bits           | Registradores pares (r24, r26, etc.)
+LDS      | lds Rd, k           | Le da variavel na SRAM         | Rd de R0 a R31
+STS      | sts k, Rr           | Grava variavel na SRAM         | OBRIGATORIO p/ EICRA (0x69)
+LD       | ld Rd, X            | Le memoria apontada por X,Y,Z  | Aceita X+ (pos-inc) ou -X (pre-dec)
+ST       | st X, Rr            | Grava na memoria por X,Y,Z     | Aceita X+ (pos-inc) ou -X (pre-dec)
+LDD      | ldd Rd, Y+q         | Le com deslocamento q (0..63)  | SOMENTE ponteiros Y e Z
+STD      | std Y+q, Rr         | Grava com deslocamento q       | SOMENTE ponteiros Y e Z
+IN       | in Rd, A            | Le registrador I/O (PORT, PIN) | Apenas I/O 0x00..0x3F (nao serve EICRA)
+OUT      | out A, Rr           | Grava registrador I/O (DDR...) | Apenas I/O 0x00..0x3F (nao serve EICRA)
+SBI      | sbi A, b            | Seta bit (coloca 1) em I/O     | Apenas I/O 0x00..0x1F (DDR, PORT, EIMSK)
+CBI      | cbi A, b            | Limpa bit (coloca 0) em I/O    | Apenas I/O 0x00..0x1F (DDR, PORT, EIMSK)
+SBIC     | sbic A, b           | Pula se bit for 0              | Pula se botao com pull-up PRESSIONADO
+SBIS     | sbis A, b           | Pula se bit for 1              | Pula se botao com pull-up SOLTO
+ADD      | add Rd, Rr          | Rd = Rd + Rr                   | Nao aceita imediato (nao existe addi!)
+ADC      | adc Rd, Rr          | Rd = Rd + Rr + Carry           | Fundamental para somas de 16/32 bits
+ADIW     | adiw Rd, K          | Soma imediato (0..63) em 16b   | Apenas pares R24, X(R26), Y(R28), Z(R30)
+SUB      | sub Rd, Rr          | Rd = Rd - Rr                   | Subtracao simples
+SBC      | sbc Rd, Rr          | Rd = Rd - Rr - Carry           | Subtracao com borrow para 16/32 bits
+SUBI     | subi Rd, K          | Rd = Rd - K (imediato)         | SOMENTE R16 a R31
+INC      | inc Rd              | Rd = Rd + 1                    | ATENCAO: NAO altera flag Carry (C)!
+DEC      | dec Rd              | Rd = Rd - 1                    | ATENCAO: NAO altera flag Carry (C)!
+CLR      | clr Rd              | Rd = 0 (zera registrador)      | Equivalente a 'eor Rd, Rd'
+COM      | com Rd              | Inverte todos os bits          | Complemento de 1
+NEG      | neg Rd              | Rd = 0 - Rd                    | Complemento de 2 (inverte sinal)
+AND/ANDI | andi Rd, K          | E logico bit a bit             | 'andi' apenas R16 a R31
+OR/ORI   | ori Rd, K           | OU logico bit a bit            | 'ori' apenas R16 a R31
+EOR      | eor Rd, Rr          | XOR logico bit a bit           | 'eor r16, r16' zera r16
+CPI      | cpi Rd, K           | Compara com constante          | SOMENTE R16 a R31
+CP       | cp Rd, Rr           | Compara dois registradores     | Altera flags Z e C sem mudar Rd/Rr
+CPC      | cpc Rd, Rr          | Compara com Carry              | Comparacao de 16/32 bits
+BREQ     | breq label          | Salta se igual (Z=1)           | Branch if Equal
+BRNE     | brne label          | Salta se diferente (Z=0)       | Branch if Not Equal (o mais usado!)
+BRLO     | brlo label          | Salta se menor (C=1)           | Numeros sem sinal (Branch Lower)
+BRSH     | brsh label          | Salta se maior/igual (C=0)     | Numeros sem sinal (Same or Higher)
+BRMI     | brmi label          | Salta se negativo (N=1)        | Numeros com sinal (Branch Minus)
+BRPL     | brpl label          | Salta se positivo (N=0)        | Numeros com sinal (Branch Plus)
+RJMP     | rjmp label          | Salto incondicional relativo   | Alcance +-2K palavras (padrao)
+JMP      | jmp label           | Salto longo absoluto           | Alcance total dos 32KB da Flash
+RCALL    | rcall label         | Chama sub-rotina               | Empilha endereco de retorno no SP
+RET      | ret                 | Retorna de sub-rotina          | Desempilha endereco de retorno
+RETI     | reti                | Retorna de interrupcao (ISR)   | Desempilha PC E reativa chave global SEI
+PUSH     | push Rr             | Guarda registrador na pilha    | Decrementa SP (salva contexto)
+POP      | pop Rd              | Tira registrador da pilha      | Incrementa SP (ordem inversa do push!)
+SEI      | sei                 | Habilita interrupcoes globais  | Seta bit I do SREG
+CLI      | cli                 | Desabilita interrupcoes        | Limpa bit I do SREG
+NOP      | nop                 | Nenhuma operacao               | Consome 1 ciclo (62.5 ns a 16MHz)
+
+GUIA DECISORIO: "QUAL COMANDO USAR QUANDO..."
+--------------------------------------------------------------------------------
+Desejo / Acao                                | Instrucao Recomendada
+---------------------------------------------+----------------------------------
+Carregar numero constante (0..255)           | ldi r16, VALOR (R16 a R31)
+Zerar um registrador                         | clr r16  (ou ldi r16, 0)
+Copiar registrador para registrador          | mov r1, r16
+Ler uma variavel declarada no .DSEG          | lds r16, nome_variavel
+Salvar numa variavel declarada no .DSEG      | sts nome_variavel, r16
+Configurar o pino como SAIDA                 | sbi DDRB, PBx
+Configurar o pino como ENTRADA               | cbi DDRD, PDx
+Ligar resistor de PULL-UP interno            | cbi DDRD, PDx  depois  sbi PORTD, PDx
+Testar se o botao foi PRESSIONADO (pull-up)  | sbic PIND, PDx (pula se 0/apertado)
+Testar se o botao foi SOLTO (pull-up)        | sbis PIND, PDx (pula se 1/solto)
+Configurar sensibilidade de interrupcao      | ldi r16, 0b...  depois  sts EICRA, r16
+Habilitar canais de interrupcao externa      | sbi EIMSK, INT0  ou  sbi EIMSK, INT1
+Ligar interrupcoes no microcontrolador       | sei  (ao final do setup)
+Desviar de fluxo se uma contagem chegou ao fim| dec r16  depois  brne LOOP
+Somar variavel de 16 ou 32 bits              | add no byte baixo, adc nos altos
+Retornar de uma sub-rotina comum             | ret
+Retornar de uma interrupcao                  | reti (OBRIGATORIO)
+================================================================================

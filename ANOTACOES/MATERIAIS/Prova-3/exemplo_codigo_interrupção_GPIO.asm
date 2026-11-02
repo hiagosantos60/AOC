@@ -65,6 +65,7 @@ setup:
     ; 4. Configura EICRA
     ; ISC01=1, ISC00=0 -> INT0 na borda de descida (10)
     ; ISC11=1, ISC10=0 -> INT1 na borda de descida (10)
+    ; Binario: 0b00001010
     ldi AUX, 0b00001010
     sts EICRA, AUX       ; Obrigatório usar sts!
 
@@ -105,7 +106,6 @@ INT_0:
     sts contador, AUX    ; Salva novo valor na memoria
     out PORTC, AUX       ; Atualiza os LEDs da PORTC
 
-FIM_INT0:
     ; Restaura o contexto
     pop AUX
     out SREG, AUX
