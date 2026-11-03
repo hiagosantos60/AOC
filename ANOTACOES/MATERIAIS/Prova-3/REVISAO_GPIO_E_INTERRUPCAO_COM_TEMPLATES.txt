@@ -119,6 +119,279 @@ A interrupcao externa depende 100% da configuracao do GPIO:
        * sei               ; Habilita interrupcoes globais (liga bit I do SREG)
        * reti              ; Retorno de interrupcao (reabilita bit I e desempilha PC)
 
+================================================================================
+6. TEMPLATES DE CODIGO PARA A PROVA (ESQUELETOS PRONTOS PARA COPIAR E USAR)
+================================================================================
+
+
+LEMBRETES RAPIDOS DO TEMPLATE 3:
+- Rotulo de "pulo" dentro da ISR (como FIM_INT0) fica ANTES dos pops.
+- Toda sub-rotina chamada com rcall termina com ret; toda ISR termina com reti.
+- Se so precisar de polling: apague vetores INT0/INT1, EICRA, EIMSK, sei e as ISRs.
+- Se so precisar de interrupcao: apague o bloco [A] e deixe MAIN como rjmp MAIN.
+- Se estiver usando pooling precisa verificar o botão, se caso estiver usando INTERRUPÇÃO
+   não precisa, configura diretamente no EICRA
+
+------------------------------------------
+TEMPLATE POOLING:
+.INCLUDE <m328pdef.inc>
+
+.def AUX  = r16
+.equ BT1  = PD2
+.equ BT2  = PD3
+.equ LED  = PB0
+
+.DSEG
+contador: .byte 1           ; Reserva 1 byte na SRAM
+
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+
+SETUP:
+    ; Entradas com Pull-up (DDR=0, PORT=1)
+    cbi DDRD, BT1
+    sbi PORTD, BT1
+    cbi DDRD, BT2
+    sbi PORTD, BT2
+
+    ; Saidas (DDR=1)
+    sbi DDRB, LED           ; 1 pino como saida (ou use ldi+out p/ varios)
+
+    ; Estado inicial
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+MAIN:
+    ; --- Botao 1 (Incrementa) ---
+    sbic PIND, BT1          ; Pressionado (0)? Pula o rjmp
+    rjmp TESTA_BT2          ; Solto (1)? Vai pro BT2
+
+    lds AUX, contador
+    inc AUX
+    sts contador, AUX
+    out PORTB, AUX
+
+TRAVA_BT1:
+    sbis PIND, BT1          ; Soltou (1)? Sai da trava
+    rjmp TRAVA_BT1
+
+TESTA_BT2:
+    ; --- Botao 2 (Zera) ---
+    sbic PIND, BT2          ; Pressionado (0)? Pula o rjmp
+    rjmp MAIN               ; Solto (1)? Reinicia loop
+
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+TRAVA_BT2:
+    sbis PIND, BT2          ; Soltou (1)? Sai da trava
+    rjmp TRAVA_BT2
+
+    rjmp MAIN
+
+------------------------------------------
+TEMPLATE INTERRUPÇÃO:
+.INCLUDE <m328pdef.inc>
+
+.def AUX     = r16
+.equ BT_INT0 = PD2          ; INT0 = PD2 fixo
+.equ BT_INT1 = PD3          ; INT1 = PD3 fixo
+
+.DSEG
+contador: .byte 1
+
+.CSEG
+.ORG 0x0000
+    rjmp SETUP              ; Reset
+.ORG 0x0002
+    rjmp ISR_INT0           ; Vetor INT0
+.ORG 0x0004
+    rjmp ISR_INT1           ; Vetor INT1
+
+SETUP:
+    ; Entradas com Pull-up
+    cbi DDRD, BT_INT0
+    sbi PORTD, BT_INT0
+    cbi DDRD, BT_INT1
+    sbi PORTD, BT_INT1
+
+    ; Saidas (PB0..PB3)
+    ldi AUX, 0b00001111
+    out DDRB, AUX
+
+    ; Configura Interrupcoes
+    ldi AUX, 0b00001010     ; INT1 e INT0 em borda de descida
+    sts EICRA, AUX          ; EICRA (0x69) exige STS
+    sbi EIMSK, INT0         ; Habilita INT0
+    sbi EIMSK, INT1         ; Habilita INT1
+
+    ; Estado inicial
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+    sei                     ; Liga chave global de interrupcoes
+
+MAIN:
+    rjmp MAIN               ; Loop livre aguardando hardware
+
+ISR_INT0:
+    push AUX                ; Salva contexto
+    in AUX, SREG
+    push AUX
+
+    ; Acao INT0 (Ex: Zera contador)
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+    pop AUX                 ; Restaura contexto
+    out SREG, AUX
+    pop AUX
+    reti
+
+ISR_INT1:
+    push AUX                ; Salva contexto
+    in AUX, SREG
+    push AUX
+
+    ; Acao INT1 (Ex: Incrementa contador)
+    lds AUX, contador
+    inc AUX
+    sts contador, AUX
+    out PORTB, AUX
+
+    pop AUX                 ; Restaura contexto
+    out SREG, AUX
+    pop AUX
+    reti
+
+------------------------------------------
+TEMPLATE INTERRUPCAO E POOLING
+.INCLUDE <m328pdef.inc>
+
+.def AUX     = r16
+.def AUX2    = r20          ; Evita r17..r19 (usados no delay)
+.equ BT_INT0 = PD2
+.equ BT_INT1 = PD3
+.equ BT_POL  = PD4
+.equ LED     = PB0
+
+.DSEG
+contador: .byte 1
+
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+.ORG 0x0002
+    rjmp ISR_INT0
+.ORG 0x0004
+    rjmp ISR_INT1
+
+.ORG 0x0034                 ; Fim da tabela de vetores
+SETUP:
+    ; Entradas com Pull-up
+    cbi DDRD, BT_INT0
+    sbi PORTD, BT_INT0
+    cbi DDRD, BT_INT1
+    sbi PORTD, BT_INT1
+    cbi DDRD, BT_POL
+    sbi PORTD, BT_POL
+
+    ; Saidas
+    sbi DDRB, LED           ; PB0 = LED
+    sbi PORTB, LED          ; Inicia apagado (se ativo em 0)
+    ldi AUX, 0b00001111     ; PC0..PC3 = Saida do contador
+    out DDRC, AUX
+
+    ; Estado inicial
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTC, AUX
+
+    ; Interrupcoes
+    ldi AUX, 0b00001010     ; Descida em INT1 e INT0
+    sts EICRA, AUX
+    sbi EIMSK, INT0
+    sbi EIMSK, INT1
+    sei
+
+MAIN:
+    ; --- [A] Polling BT_POL (Decrementa ate 0) ---
+    sbic PIND, BT_POL       ; Pressionado (0)? Pula rjmp
+    rjmp PISCA_LED
+
+    cli                     ; Protege variavel compartilhada
+    lds AUX, contador
+    cpi AUX, 0              ; Limite inferior = 0
+    breq FIM_POL
+    dec AUX
+    sts contador, AUX
+    out PORTC, AUX
+FIM_POL:
+    sei
+
+TRAVA_POL:
+    sbis PIND, BT_POL       ; Espera soltar (1)
+    rjmp TRAVA_POL
+
+PISCA_LED:
+    ; --- [B] Inverte LED com Delay ---
+    sbi PINB, LED           ; Toggle em PB0 (escrever 1 no PINx inverte PORTx)
+    ldi r19, 80             ; ~1s em 16MHz (16 = ~200ms)
+    rcall delay
+    rjmp MAIN
+
+ISR_INT0:
+    push AUX
+    in AUX, SREG
+    push AUX
+
+    ; Incrementa com teto em 15
+    lds AUX, contador
+    cpi AUX, 15
+    breq FIM_INT0
+    inc AUX
+    sts contador, AUX
+    out PORTC, AUX
+FIM_INT0:
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti
+
+ISR_INT1:
+    push AUX
+    in AUX, SREG
+    push AUX
+
+    ; Zera contador
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTC, AUX
+
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti
+
+; --- Sub-rotina de Delay (Usa r17, r18, r19) ---
+delay:
+    ldi r18, 255
+d_loop1:
+    ldi r17, 255
+d_loop2:
+    dec r17
+    brne d_loop2
+    dec r18
+    brne d_loop1
+    dec r19
+    brne delay
+    ret
+-----------------------------------------------------------------
 
 ================================================================================
 3. QUESTAO 1: CODIGO ASSEMBLY AVR (ABORDAGEM POR POLLING / GPIO)
@@ -383,380 +656,6 @@ Deteccao press/solta  | Laco sbis/sbic no codigo    | Hardware no EICRA (descida
 Retorno da rotina     | rjmp / ret                  | OBRIGATORIAMENTE reti
 Contexto              | Nao precisa salvar SREG     | OBRIGATORIO salvar SREG na pilha
 ================================================================================
-
-
-================================================================================
-6. TEMPLATES DE CODIGO PARA A PROVA (ESQUELETOS PRONTOS PARA COPIAR E USAR)
-================================================================================
---------------------------------------------------------------------------------
-TEMPLATE 1: ABORDAGEM POR POLLING (VERIFICACAO CONTINUA NO LOOP / GPIO PURO)
---------------------------------------------------------------------------------
-Quando usar:
-- Quando o enunciado pedir para verificar botoes continuamente via software.
-- Nao ha vetores de interrupcao nem instrucao 'sei'.
-- A CPU fica 100% presa no loop 'MAIN' lendo os pinos com sbic/sbis.
-
-; ==============================================================================
-.INCLUDE <m328pdef.inc>
-
-; --- 1. Definicoes e Apelidos ---
-.def AUX  = r16
-.def AUX2 = r17
-.equ BOTAO1 = PD2       ; Entrada (ex: Botao 1)
-.equ BOTAO2 = PD3       ; Entrada (ex: Botao 2)
-.equ LED    = PB0       ; Saida (ex: LED ou pino qualquer)
-
-; --- 2. Variaveis na SRAM (opcional, use se a questao pedir dados na memoria) ---
-.DSEG
-contador: .byte 1
-
-; --- 3. Codigo Principal ---
-.CSEG
-.ORG 0x0000
-    rjmp SETUP
-
-SETUP:
-
-    ; --- Configura Entradas com Pull-up interno (cbi DDR, sbi PORT) ---
-    cbi DDRD, BOTAO1    ; Define pino como Entrada (DDR=0)
-    sbi PORTD, BOTAO1   ; Ativa Pull-up interno (PORT=1)
-    cbi DDRD, BOTAO2
-    sbi PORTD, BOTAO2
-
-    ; --- Configura Saidas (sbi DDR para 1 pino ou ldi+out para a porta toda) ---
-    sbi DDRB, LED       ; PB0 como saida (DDR=1)
-    ; ldi AUX, 0b00001111 ; Caso queira bits 0 a 3 como saida
-    ; out DDRB, AUX
-
-    ; --- Inicializacao de variaveis ou estados iniciais ---
-    ldi AUX, 0
-    sts contador, AUX
-    out PORTB, AUX      ; Comeca com saida zerada
-
-MAIN:
-    ; -------------------------------------------------------------------------
-    ; TESTE DO BOTAO 1:
-    ; Lembrar da logica do pull-up:
-    ;   0 = Botao Pressionado (conectou ao GND)
-    ;   1 = Botao Solto (puxado pelo resistor de pull-up a 5V)
-    ; -------------------------------------------------------------------------
-    sbic PIND, BOTAO1       ; Se estiver em 0 (pressionado), pula a linha abaixo
-    rjmp TESTA_BOTAO2       ; Se estiver em 1 (solto), salta pro proximo teste
-
-    ; >> ACAO AO DETECTAR O BOTAO 1 PRESSIONADO <<
-    ; Exemplo: incrementar contador ou ligar LED
-    lds AUX, contador
-    inc AUX
-    sts contador, AUX
-    out PORTB, AUX
-
-ESPERA_SOLTAR_BT1:
-    ; TRAVA DE DEBOUNCE: Impede que 1 clique dispare milhares de vezes no clock
-    sbis PIND, BOTAO1       ; Se soltou (1), pula a instrucao seguinte
-    rjmp ESPERA_SOLTAR_BT1  ; Enquanto estiver apertado (0), fica segurando aqui
-
-TESTA_BOTAO2:
-    sbic PIND, BOTAO2       ; Se pressionou BOTAO2 (0), pula
-    rjmp FIM_LOOP           ; Se solto (1), vai pro fim do loop
-
-    ; >> ACAO AO DETECTAR O BOTAO 2 PRESSIONADO <<
-    ; Exemplo: zerar contador ou desligar LED
-    ldi AUX, 0
-    sts contador, AUX
-    out PORTB, AUX
-
-ESPERA_SOLTAR_BT2:
-    sbis PIND, BOTAO2       ; Espera o usuario soltar o BOTAO2
-    rjmp ESPERA_SOLTAR_BT2
-
-FIM_LOOP:
-    rjmp MAIN               ; Reinicia o ciclo de verificacao
-; ==============================================================================
-
-
-
---------------------------------------------------------------------------------
-TEMPLATE 2: ABORDAGEM POR INTERRUPCAO EXTERNA (INT0 / INT1 / ISR)
---------------------------------------------------------------------------------
-Quando usar:
-- Quando o enunciado citar "interrupcao externa", "vetores", "EICRA" ou "ISR".
-- Os pinos DEVEM ser PD2 (INT0) e/ou PD3 (INT1).
-- O loop MAIN fica livre (rjmp MAIN), a CPU so age quando o hardware chama a ISR.
-
-; ==============================================================================
-.INCLUDE <m328pdef.inc>
-
-; --- 1. Definicoes e Apelidos ---
-.def AUX  = r16
-.def AUX2 = r17
-.equ BT_INT0 = PD2      ; INT0 eh obrigatoriamente PD2
-.equ BT_INT1 = PD3      ; INT1 eh obrigatoriamente PD3
-
-; --- 2. Variaveis na SRAM ---
-.DSEG
-contador: .byte 1
-
-; --- 3. Tabela de Vetores de Interrupcao (INICIO DA FLASH) ---
-.CSEG
-.ORG 0x0000
-    rjmp SETUP          ; Vetor 0: Reset da CPU
-
-.ORG 0x0002
-    rjmp ISR_INT0       ; Vetor 1: Interrupcao Externa INT0 (PD2)
-
-.ORG 0x0004
-    rjmp ISR_INT1       ; Vetor 2: Interrupcao Externa INT1 (PD3)
-
-SETUP:
-    ; --- 1. GPIO: Configurar pinos de interrupcao como Entrada com Pull-up ---
-    cbi DDRD, BT_INT0	; define com entrada, valor 0
-    sbi PORTD, BT_INT0  ; ativa o pull-up
-    cbi DDRD, BT_INT1
-    sbi PORTD, BT_INT1
-
-    ; --- 2. GPIO: Configurar Saidas ---
-    ldi AUX, 0b00001111 ; PB0..PB3 como saida
-    out DDRB, AUX
-
-    ; --- 3. Interrupcao: Configurar EICRA (Sensibilidade de Disparo) ---
-    ; Consulte a cola de binarios da Secao 2 do guia!
-    ; Exemplo: INT1 e INT0 ambos na borda de descida (ao pressionar):
-    ldi AUX, 0b00001010
-    sts EICRA, AUX      ; ATENCAO: EICRA exige STS (endereco estendido 0x69)!
-
-    ; --- 4. Interrupcao: Habilitar os pinos na Mascara (EIMSK) ---
-    sbi EIMSK, INT0     ; Liga INT0
-    sbi EIMSK, INT1     ; Liga INT1
-
-    ; --- 5. Estado Inicial das variaveis/saidas ---
-    ldi AUX, 0
-    sts contador, AUX
-    out PORTB, AUX
-
-    ; --- 6. Habilitar a Chave Geral de Interrupcoes ---
-    sei                 ; Seta o bit I no SREG (Global Interrupt Enable)
-
-MAIN:
-    ; O processador nao precisa gastar tempo checando botoes:
-    rjmp MAIN           ; Loop ocioso aguardando interrupcoes
-
-
-; ==============================================================================
-; ISR INT0 - Executada automaticamente no disparo de PD2
-; ==============================================================================
-ISR_INT0:
-    ; --- 1. Salvar Contexto na Pilha (OBRIGATORIO EM PROVA) ---
-    push AUX
-    in AUX, SREG
-    push AUX
-    ; push AUX2         ; Salve se for usar AUX2 dentro desta rotina
-
-    ; --- 2. Logica da Interrupcao INT0 ---
-    ; (Coloque aqui o que o professor pediu ao disparar INT0)
-    ; Exemplo: zerar contador
-    ldi AUX, 0
-    sts contador, AUX
-    out PORTB, AUX
-
-    ; --- 3. Restaurar Contexto da Pilha (na ordem inversa) ---
-    ; pop AUX2
-    pop AUX
-    out SREG, AUX       ; Restaura as flags do processador
-    pop AUX
-    reti                ; OBRIGATORIO: Retorna da ISR e reabilita interrupcoes
-
-
-; ==============================================================================
-; ISR INT1 - Executada automaticamente no disparo de PD3
-; ==============================================================================
-ISR_INT1:
-    ; --- 1. Salvar Contexto na Pilha ---
-    push AUX
-    in AUX, SREG
-    push AUX
-
-    ; --- 2. Logica da Interrupcao INT1 ---
-    ; REGRA DE OURO: com borda de descida/subida, NAO use sbic/sbis PIND dentro da ISR!
-    ; (so eh necessario ler o PIND se usar o modo 01 - qualquer mudanca)
-    ; O hardware so salta para ca quando o evento configurado no EICRA ocorre.
-    ; Se configurou para Borda de Descida (10), o evento eh garantido ao pressionar:
-    lds AUX, contador
-    inc AUX
-    sts contador, AUX
-    out PORTB, AUX
-
-    ; --- 3. Restaurar Contexto ---
-    pop AUX
-    out SREG, AUX
-    pop AUX
-    reti
-================================================================================
-
---------------------------------------------------------------------------------
-TEMPLATE 3: GENERICO (INTERRUPCAO + POLLING + DELAY + SRAM, TUDO JUNTO)
---------------------------------------------------------------------------------
-Quando usar:
-- Quando o enunciado misturar coisas (ex: LED piscando + botoes por interrupcao
-  + outro botao por polling) ou quando voce nao sabe de antemao o que vai cair.
-- COMO USAR: copie tudo e APAGUE o que o enunciado nao pedir. Os trechos que
-  voce deve adaptar estao marcados com "<< ADAPTAR >>".
-
-; ==============================================================================
-.INCLUDE <m328pdef.inc>
-
-; --- 1. Definicoes e Apelidos << ADAPTAR >> ---
-.def AUX  = r16          ; auxiliar (ldi/cpi exigem R16..R31)
-.def AUX2 = r20          ; 2o auxiliar (evita r17..r19, usados pelo delay)
-.equ BT_INT0 = PD2       ; INT0 eh obrigatoriamente PD2
-.equ BT_INT1 = PD3       ; INT1 eh obrigatoriamente PD3
-.equ BT_POL  = PD4       ; botao lido por polling (pode ser qualquer pino)
-.equ LED     = PB0       ; LED simples
-
-; --- 2. Variaveis na SRAM ---
-.DSEG
-contador: .byte 1
-
-; --- 3. Vetores de Interrupcao ---
-.CSEG
-.ORG 0x0000
-    rjmp SETUP           ; Reset
-
-.ORG 0x0002
-    rjmp ISR_INT0        ; INT0 (PD2)
-
-.ORG 0x0004
-    rjmp ISR_INT1        ; INT1 (PD3)
-
-.ORG 0x0034              ; Pula o espaco dos vetores
-SETUP:
-    ; --- Botoes: entrada com pull-up (DDR=0, PORT=1) ---
-    cbi DDRD, BT_INT0
-    sbi PORTD, BT_INT0
-    cbi DDRD, BT_INT1
-    sbi PORTD, BT_INT1
-    cbi DDRD, BT_POL
-    sbi PORTD, BT_POL
-
-    ; --- Saidas << ADAPTAR >> ---
-    sbi DDRB, LED        ; PB0 como saida
-    sbi PORTB, LED       ; LED comeca apagado (ativo em 0). Se for ativo em 1: cbi
-    ldi AUX, 0b00001111  ; PC0..PC3 como saida (display do contador 0..15)
-    out DDRC, AUX
-
-    ; --- Estado inicial ---
-    ldi AUX, 0
-    sts contador, AUX
-    out PORTC, AUX
-
-    ; --- Interrupcoes << ADAPTAR: ver cola de binarios da Secao 2 >> ---
-    ldi AUX, 0b00001010  ; INT1 e INT0 na borda de descida (ao pressionar)
-    sts EICRA, AUX       ; EICRA exige STS!
-    sbi EIMSK, INT0      ; habilita INT0 (apague se nao usar)
-    sbi EIMSK, INT1      ; habilita INT1 (apague se nao usar)
-    sei                  ; chave global (sempre por ultimo no setup)
-
-MAIN:
-    ; --- [A] POLLING do botao BT_POL (apague o bloco se nao houver) ---
-    sbic PIND, BT_POL    ; pressionado (0)? pula o rjmp
-    rjmp BLOCO_B         ; solto (1): segue para o bloco B
-
-    ; Acao do botao (exemplo: decrementa o contador, minimo 0)
-    ; cli/sei: o contador tambem eh alterado pelas ISRs, entao
-    ; le-modifica-grava NAO pode ser interrompido no meio.
-    cli
-    lds AUX, contador
-    cpi AUX, 0
-    breq FIM_POL
-    dec AUX
-    sts contador, AUX
-    out PORTC, AUX
-FIM_POL:
-    sei
-ESPERA_SOLTAR:           ; evita varias contagens em um unico clique
-    sbis PIND, BT_POL    ; soltou (1)? pula o rjmp
-    rjmp ESPERA_SOLTAR
-
-BLOCO_B:
-    ; --- [B] LED PISCANDO com delay (apague o bloco se nao houver) ---
-    ; Obs: o delay prende o MAIN; o polling acima so eh lido a cada volta.
-    ; Por isso botoes "que nao podem perder clique" devem usar INT0/INT1.
-    sbi PINB, LED        ; escrever 1 em PINx INVERTE o PORTx (toggle)
-    ldi r19, 80          ; 16 = ~200ms | 80 = ~1s | 160 = ~2s (clock 16 MHz)
-    rcall delay
-
-    rjmp MAIN
-
-
-; ==============================================================================
-; ISR INT0 (PD2) << ADAPTAR a acao >>  - exemplo: incrementa ate 15
-; ==============================================================================
-ISR_INT0:
-    push AUX
-    in AUX, SREG
-    push AUX
-
-    lds AUX, contador
-    cpi AUX, 15
-    breq FIM_INT0
-    inc AUX
-    sts contador, AUX
-    out PORTC, AUX
-FIM_INT0:                ; o label fica ANTES da restauracao do contexto
-    pop AUX
-    out SREG, AUX
-    pop AUX
-    reti
-
-
-; ==============================================================================
-; ISR INT1 (PD3) << ADAPTAR a acao >>  - exemplo: zera o contador
-; ==============================================================================
-ISR_INT1:
-    push AUX
-    in AUX, SREG
-    push AUX
-
-    ldi AUX, 0
-    sts contador, AUX
-    out PORTC, AUX
-
-    pop AUX
-    out SREG, AUX
-    pop AUX
-    reti
-
-
-; ==============================================================================
-; SUB-ROTINA DE ATRASO PADRAO (r19 define o tempo; r19 eh destruido)
-; ==============================================================================
-delay:
-    push r17
-    push r18
-    in r17, SREG
-    push r17
-
-    clr r17
-    clr r18
-delay_loop:
-    dec r17
-    brne delay_loop
-    dec r18
-    brne delay_loop
-    dec r19
-    brne delay_loop
-
-    pop r17
-    out SREG, r17
-    pop r18
-    pop r17
-    ret
-; ==============================================================================
-
-LEMBRETES RAPIDOS DO TEMPLATE 3:
-- Rotulo de "pulo" dentro da ISR (como FIM_INT0) fica ANTES dos pops.
-- Toda sub-rotina chamada com rcall termina com ret; toda ISR termina com reti.
-- Se so precisar de polling: apague vetores INT0/INT1, EICRA, EIMSK, sei e as ISRs.
-- Se so precisar de interrupcao: apague o bloco [A] e deixe MAIN como rjmp MAIN.
 
 
 ================================================================================
