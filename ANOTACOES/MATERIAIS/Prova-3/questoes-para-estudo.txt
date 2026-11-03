@@ -1,0 +1,278 @@
+================================================================================
+QUESTOES DE TREINO (NIVEL DA PROVA) - GPIO PURO E INTERRUPCAO EXTERNA
+Materia: Arquitetura e Organizacao de Computadores (AOC) - ATmega328P
+================================================================================
+Tente resolver em papel ANTES de abrir o gabarito (Parte 2).
+Confira com o checklist do guia (sts EICRA, sei, reti, SREG, R16..R31).
+
+
+################################################################################
+PARTE 1 - ENUNCIADOS
+################################################################################
+
+--------------------------------------------------------------------------------
+QUESTAO A (GPIO PURO / POLLING)
+--------------------------------------------------------------------------------
+Escreva um programa em Assembly AVR (ATmega328P) que:
+- Inicialize os GPIOs adequadamente.
+- Botao SOMA em PD4 e botao ZERA em PD5, ambos com pull-up interno.
+- A variavel "contador" fica na SRAM e vai de 0 a 15.
+- Cada vez que SOMA for pressionado, incrementa o contador (maximo 15).
+- Cada vez que ZERA for pressionado, zera o contador.
+- O valor do contador deve ser mostrado em PB0..PB3 (PORTB).
+- Nao utilize interrupcoes.
+
+
+--------------------------------------------------------------------------------
+QUESTAO B (INTERRUPCAO EXTERNA)
+--------------------------------------------------------------------------------
+Escreva um programa em Assembly AVR (ATmega328P) que:
+- Inicialize os GPIOs adequadamente.
+- Botao DEC em PD2 (INT0) e botao REINICIA em PD3 (INT1), ambos com pull-up
+  interno e ambos tratados por interrupcao externa.
+- A variavel "contador" fica na SRAM, inicia em 15 e vai de 15 a 0.
+- Cada vez que DEC for PRESSIONADO, decrementa o contador (minimo 0).
+- Cada vez que REINICIA for SOLTO, o contador volta para 15.
+- O valor do contador deve ser mostrado em PC0..PC3 (PORTC).
+- Informe o valor do EICRA e justifique.
+
+
+################################################################################
+PARTE 2 - GABARITO (so abra depois de tentar!)
+################################################################################
+
+--------------------------------------------------------------------------------
+GABARITO DA QUESTAO A
+--------------------------------------------------------------------------------
+.INCLUDE <m328pdef.inc>
+
+.equ BT_SOMA = PD4
+.equ BT_ZERA = PD5
+.def AUX     = r16
+
+.DSEG
+contador: .byte 1
+
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+
+SETUP:
+    ; 1. Botoes: entrada com pull-up (DDR=0, PORT=1)
+    cbi DDRD, BT_SOMA
+    sbi PORTD, BT_SOMA
+    cbi DDRD, BT_ZERA
+    sbi PORTD, BT_ZERA
+
+    ; 2. PB0..PB3 como saida
+    ldi AUX, 0b00001111
+    out DDRB, AUX
+
+    ; 3. Estado inicial
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+
+MAIN:
+    sbis PIND, BT_ZERA          ; solto (1)? pula o rjmp
+    rjmp TRATA_ZERA             ; pressionado (0): trata o ZERA
+
+    sbic PIND, BT_SOMA          ; pressionado (0)? pula o rjmp
+    rjmp MAIN                   ; solto (1): volta ao loop
+
+    ; --- SOMA pressionado ---
+    lds AUX, contador
+    cpi AUX, 15
+    breq ESPERA_SOMA            ; ja esta no maximo
+    inc AUX
+    sts contador, AUX
+    out PORTB, AUX
+ESPERA_SOMA:
+    sbis PIND, BT_SOMA          ; espera soltar (1 clique = 1 contagem)
+    rjmp ESPERA_SOMA
+    rjmp MAIN
+
+TRATA_ZERA:
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX
+ESPERA_ZERA:
+    sbis PIND, BT_ZERA          ; espera soltar
+    rjmp ESPERA_ZERA
+    rjmp MAIN
+
+
+--------------------------------------------------------------------------------
+GABARITO DA QUESTAO B
+--------------------------------------------------------------------------------
+EICRA:
+- INT0 (PD2) ao PRESSIONAR -> borda de descida -> ISC01:ISC00 = 10
+- INT1 (PD3) ao SOLTAR     -> borda de subida  -> ISC11:ISC10 = 11
+- EICRA = 0b0000 11 10 = 0b00001110 = 0x0E
+
+.INCLUDE <m328pdef.inc>
+
+.equ BT_DEC   = PD2             ; INT0
+.equ BT_REINI = PD3             ; INT1
+.def AUX      = r16
+
+.DSEG
+contador: .byte 1
+
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+
+.ORG 0x0002
+    rjmp ISR_INT0
+
+.ORG 0x0004
+    rjmp ISR_INT1
+
+.ORG 0x0034
+SETUP:
+    ; 1. Botoes: entrada com pull-up
+    cbi DDRD, BT_DEC
+    sbi PORTD, BT_DEC
+    cbi DDRD, BT_REINI
+    sbi PORTD, BT_REINI
+
+    ; 2. PC0..PC3 como saida
+    ldi AUX, 0b00001111
+    out DDRC, AUX
+
+    ; 3. Estado inicial: contador = 15
+    ldi AUX, 15
+    sts contador, AUX
+    out PORTC, AUX
+
+    ; 4. Interrupcoes
+    ldi AUX, 0b00001110         ; INT1 subida (11) | INT0 descida (10)
+    sts EICRA, AUX              ; EICRA exige STS!
+    sbi EIMSK, INT0
+    sbi EIMSK, INT1
+    sei
+
+MAIN:
+    rjmp MAIN
+
+; --- INT0 (PD2): decrementa ao pressionar ---
+ISR_INT0:
+    push AUX
+    in AUX, SREG
+    push AUX
+
+    lds AUX, contador
+    cpi AUX, 0
+    breq FIM_INT0               ; ja esta no minimo
+    dec AUX
+    sts contador, AUX
+    out PORTC, AUX
+FIM_INT0:                       ; label ANTES da restauracao do contexto
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti
+
+; --- INT1 (PD3): volta para 15 ao soltar ---
+ISR_INT1:
+    push AUX
+    in AUX, SREG
+    push AUX
+
+    ldi AUX, 15
+    sts contador, AUX
+    out PORTC, AUX
+
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti
+================================================================================
+
+
+
+
+RESPOSTAS FEITAS A MÃO:
+--------------------------------------------------------------------------------
+QUESTAO A (GPIO PURO / POLLING)
+--------------------------------------------------------------------------------
+Escreva um programa em Assembly AVR (ATmega328P) que:
+- Inicialize os GPIOs adequadamente.
+- Botao SOMA em PD4 e botao ZERA em PD5, ambos com pull-up interno.
+- A variavel "contador" fica na SRAM e vai de 0 a 15.
+- Cada vez que SOMA for pressionado, incrementa o contador (maximo 15).
+- Cada vez que ZERA for pressionado, zera o contador.
+- O valor do contador deve ser mostrado em PB0..PB3 (PORTB).
+- Nao utilize interrupcoes.
+
+.INCLUDE <m328pdef.inc>
+
+; --- 1. Definicoes e Apelidos ---
+.def AUX  = r16
+.def AUX2 = r17
+.equ SOMA = PD4       ; Entrada (ex: Botao 4)
+.equ ZERA = PD5       ; Entrada (ex: Botao 5)
+
+; --- 2. Variaveis na SRAM para o contador 
+.DSEG
+contador: .byte 1
+
+; --- 3. Codigo Principal ---
+.CSEG
+.ORG 0x0000
+    rjmp SETUP
+
+SETUP:
+
+    ; --- Configura Entradas com Pull-up interno (cbi DDR, sbi PORT) ---
+    cbi DDRD, SOMA    ; Define pino como Entrada (DDR=0)
+    sbi PORTD, SOMA   ; Ativa Pull-up interno (PORT=1)
+    cbi DDRD, ZERA
+    sbi PORTD, ZERA
+
+    ; --- Configura Saidas
+    ldi AUX, 0b00001111 ; bits 0 a 3 como saida
+    out DDRB, AUX
+
+    ; --- Inicializacao de variaveis ou estados iniciais ---
+    ldi AUX, 0
+    sts contador, AUX
+    out PORTB, AUX      ; Comeca com led de saida zerados e contador em 0
+
+MAIN:
+	; teste do botão de reset
+	sbis PIND, ZERA		; pula se solto(1)
+	rjmp RESETAR
+	
+	; teste do botão de incremento 
+	sbis PIND, SOMA		; pula se solto (1)
+	rjmp INCREMENTAR 
+	
+	rjmp MAIN 	; volta para o loop para verificar os botões
+
+RESETAR:
+	ldi AUX, 0 
+	sts contador, AUX
+	out PORTB, AUX
+SOLTA_ZERA:
+        sbis PIND, ZERA
+        rjmp SOLTA_ZERA
+        rjmp MAIN
+
+INCREMENTAR:
+	lds AUX, contador
+	cpi AUX, 15
+	breq SOLTA_INC 	; IF(CONTADOR > 15)
+	
+	inc AUX
+	sts contador, AUX
+	out PORTB, AUX
+
+SOLTA_INC:
+        sbis PIND, SOMA
+        rjmp SOLTA_INC
+        rjmp MAIN
+
+
+=====================================================================================
