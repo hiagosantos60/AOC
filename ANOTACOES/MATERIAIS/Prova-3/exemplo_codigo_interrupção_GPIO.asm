@@ -92,25 +92,22 @@ main:
 ; INTERRUPCAO 0: BOTAO INCREMENTAR (PD2)
 ;--------------------------------------------------------------
 INT_0:
-    ; Salva o contexto
     push AUX
     in AUX, SREG
     push AUX
 
-    ; Le o contador da memoria SRAM
     lds AUX, contador
-    cpi AUX, 15          ; Ja chegou em 15?
-    breq FIM_INT0        ; Se sim, pula e nao incrementa
+    cpi AUX, 15          ; ja chegou em 15?
+    breq FIM_INT0        ; sim: nao incrementa
 
-    inc AUX              ; Incrementa contador
-    sts contador, AUX    ; Salva novo valor na memoria
-    out PORTC, AUX       ; Atualiza os LEDs da PORTC
+    inc AUX
+    sts contador, AUX
+    out PORTC, AUX
 
-    ; Restaura o contexto
+FIM_INT0:                ; os dois caminhos passam por aqui
     pop AUX
     out SREG, AUX
     pop AUX
-
     reti
 
 ;--------------------------------------------------------------
@@ -134,31 +131,29 @@ INT_1:
 
     reti
 
-;--------------------------------------------------------------
-; SUB-ROTINA DE ATRASO PADRAO DA DISCIPLINA
-; Depende de R19:
-; R19 = 16 -> ~200ms
-; R19 = 80 -> ~1s
-;--------------------------------------------------------------
-delay:
-    push r17
-    push r18
-    in r17, SREG
-    push r17
 
-    clr r17
-    clr r18
-delay_loop:
-    dec r17
-    brne delay_loop
-    dec r18
-    brne delay_loop
-    dec r19
-    brne delay_loop
 
-    pop r17
-    out SREG, r17
-    pop r18
-    pop r17
+=========================================
+Ideia de código para caso chegue no máximo e tenha que voltar para o inicio 
+INT_0:
+    push AUX
+    in AUX, SREG
+    push AUX
 
-    ret
+    lds AUX, contador
+    cpi AUX, 15          ; chegou no maximo?
+    breq ZERA_CONT       ; sim: vai zerar
+    inc AUX              ; nao: incrementa
+    rjmp SALVA_CONT      ; pula o trecho que zera
+
+ZERA_CONT:
+    ldi AUX, 0           ; volta ao zero
+
+SALVA_CONT:
+    sts contador, AUX    ; salva o valor (incrementado ou zero)
+    out PORTC, AUX       ; atualiza os LEDs
+
+    pop AUX
+    out SREG, AUX
+    pop AUX
+    reti
