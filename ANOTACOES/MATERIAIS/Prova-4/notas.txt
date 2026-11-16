@@ -1,0 +1,50 @@
+O microcontrolador conta com três periféricos independentes: dois de 8 bits (TC0 e TC2) e um de 16 bits (TC1)
+
+Prescaler é um configurador de frequência para determinar o tempo de estouro 
+
+t_estouro = (top+1)*prescaler/(f_osc)
+- é necessário saber a frequência de oscilação
+- o top é o máximo que o TC aguenta, no caso de TC0 é 255
+
+Considerando um clock de $f_{osc} = 16\text{ MHz}$, a escolha do prescaler permite programar o estouro (e a respectiva interrupção) para cinco intervalos fixos:   
+- Prescaler 1: estouro a cada 16 micro segundo 
+- Prescaler 8: estouro a cada 128 micro segundos
+- Prescaler 64: estouro a cada 1024 mili segundos
+- Prescaler 256: estouro a cada 4096 mili segundos
+- Prescaler 1024: estouro a cada 16384 mili segundos
+
+Exemplo de código:
+.ORG 0x0000          ; Vetor reset
+    RJMP setup
+.ORG 0x0020          ; Vetor (endereço na Flash) do estouro do T/C0
+    RJMP isr_tc0b
+
+setup:
+    SBI DDRB, PB5        ; Configura pino PB5 como saída
+    CBI PORTB, PB5       ; Desliga LED inicialmente
+    
+    LDI R16, 0b00000101  ; TC0 com prescaler de 1024 (16,384 ms a 16 MHz)
+    OUT TCCR0B, R16      ; Grava configuração no registrador de controle B
+    
+    LDI R16, 1
+    STS TIMSK0, R16      ; Habilita int. de estouro do TC0 (TOIE0 = 1)
+    
+    SEI                  ; Habilita as interrupções globais
+
+main:
+    RJMP main            ; Laço principal livre
+
+isr_tc0b:
+    INC r16              ; Contabiliza mais um estouro de 16,384 ms
+    CPI r16, 62          ; Compara se já ocorreram 62 interrupções
+    BRNE fim             ; Se for diferente de 62, encerra a rotina
+    SBI PINB, PB5        ; Inverte o LED após 62 * 16,384 ms = 1,015 s
+    LDI r16, 0           ; Reinicia o contador de interrupções
+fim:
+    RETI                 ; Retorno da interrupção
+    
+No slide apresenta o que deve ser colocado no TCCRB0 para configurar o prescaler
+
+O prescaler é controlado por TCCR0B e o TTCR0A 
+
+

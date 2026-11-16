@@ -39,6 +39,7 @@ setup:
     ; Configura Timer 0 com prescaler de 1024 (16,384 ms)
     ldi R16, 0b00000101
     out TCCR0B, R16
+
     ldi R16, 1                  ; TIMSK0(0) = TOIE0 <- 1
     sts TIMSK0, R16
 
@@ -91,3 +92,8 @@ grava_int:
     out SREG, R16
     pop R16
     reti
+
+; A rotina isr_tc0b serve para manter o led piscando o tempo todo e comparando para ver se a contagem é 
+; menor que o intervalo, e a contagem vai sendo incrementada a cada interrupcao. Só vai mudar para um 
+; tempo menor quando o botão for pressionado e ai sim nós vamos zerar a contagem e decrementar 6 no 
+; intervalo de tempo que o led pisca, com isso vamos ter (n-6)*16,384ms resultando no nosso tempo reduzindo

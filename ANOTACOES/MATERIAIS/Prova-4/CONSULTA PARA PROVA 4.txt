@@ -1,0 +1,240 @@
+CONSULTA PARA PROVA 4 DE AOC 
+
+Identificar o que o sistema usa e qual timer vamos usar no problema:
+- Clock do sistema f_osc: Quase sempre 16MHz (16.000.000Hz) nas aulas e provas.  
+Qual timer usar:
+- TC0 ou TC2: 8 bits capacidade máxima (TOP) = 255.   
+- TC1: 16 bits capacidade máxima (TOP) = 65.535.
+
+Identificar qual a estratégia de contagem vamos usar:
+- Overflow: O timer conta de 0 até o TOP do registrador e quando estoura o limite gera um pulso de interrupção e zera sozinho a contagem 
+	# t_estouro = (TOP+1)*prescaler/(f_osc)	
+	
+- CTC: O time conta de 0 até o valor personalizado registrado em OCR0A (Assume o lugar de top)
+	# t_estouro = (OCR0A+1)*prescaler/(f_osc)	
+- pode usar essa fórmula para verificar qual seria o melhor valor para colocar no OCR0A para contar até certo valor também levando em consideração o prescaler usado 
+Exemplo prático (1 ms com Prescaler de 64 e 16 MHz):
+- OCR0A = (0,001 × 16.000.000) / 64 - 1
+- OCR0A = 16.000 / 64 - 1
+- OCR0A = 250 - 1
+- OCR0A = 249
+(Ou seja, gravando 249 no OCR0A e usando prescaler 64, a interrupção ocorre a cada 1 ms exato!)
+Podemos usar variáveis para atingir o tempo que desejamos, como no exemplo abaixo
+
+```assembly
+.DSEG
+contagem: .byte 1       ; Reserva 1 byte na SRAM (suficiente pois vamos contar até 250)
+
+.CSEG
+.ORG 0x0000
+    rjmp setup
+
+.ORG 0x0022             ; Vetor da Interrupção por Comparação A (Timer 0)
+    rjmp isr_tc0a
+
+setup:
+    sbi DDRB, PB5       ; Configura o pino PB5 como saída
+    cbi PORTB, PB5      ; Garante que o LED comece desligado
+
+    ldi r16, 0
+    sts contagem, r16   ; Grava o valor 0 na variável 'contagem'
+
+    ldi r16, 249
+    out OCR0A, r16      ; Define a linha de chegada (TOP = 249)
+
+    ldi r16, 0b00000010 ; Ativa apenas o bit WGM01
+    out TCCR0A, r16     ; Modo CTC: Zera automaticamente quando chega em 249
+
+    ldi r16, 0b00000100 ; Ativa apenas o bit CS02
+    out TCCR0B, r16     ; Liga o relógio com Prescaler de 256
+
+    ; 6. Autoriza a CPU a ser interrompida por esse timer específico
+    ldi r16, 0b00000010
+    sts TIMSK0, r16     ; Habilita a interrupção OCIE0A (Avisa quando chegar no OCR0A)
+
+    ; 7. Liga a chave geral de interrupções da casa
+    sei
+
+main:
+    rjmp main          
+
+isr_tc0a:
+    push r16
+    in r16, SREG
+    push r16
+
+    ; 2. BUSCA E INCREMENTA
+    lds r16, contador    ; Busca o valor atual que está salvo na SRAM
+    inc r16              ; Soma +1 nesse valor
+
+    ; 3. COMPARA COM O ALVO
+    cpi r16, 250         ; Já bateu 250 vezes? (250 * 4ms = 1000ms = 1s)
+    breq BATEU_O_TEMPO   ; Se for igual, pula para fazer a ação
+
+    ; 4. SE NÃO BATEU (Ainda não deu 1 segundo)
+    ; Apenas vai para a rotina de salvar o novo valor e sair
+    rjmp SALVA_E_SAI
+
+BATEU_O_TEMPO:
+    ; Se chegou aqui, passou 1 segundo exato!
+    sbi PINB, PB5        ; Inverte o estado do LED (pisca)
+    ldi r16, 0           ; Zera o contador, pois o ciclo de 1s acabou
+
+SALVA_E_SAI:
+    sts contador, r16    ; Guarda o valor (seja ele incrementado ou zerado) de volta na SRAM
+
+    pop r16
+    out SREG, r16
+    pop r16
+    reti                 ; OBRIGATÓRIO reti para interrupção!
+```
+
+PRA QUE SERVE CADA REGISTRADOR;
+- TCCR0A: Serve para definir qual vai ser o modo, se overflow ou ctc
+- TCCR0B: Serve para definir o valor do prescaler da contagem 
+- TIMSK0: Vai avisar sobre a interrupção, precisa estar conforme o TCCR0A
+	- Se configurou o TCCR0A para CTC, você ativa o TIMSK0 no bit OCIE0A
+	- Se configurou o TCCR0A para Overflow, você ativa o TIMSK0 no bit TOIE0
+	
+TEMPLATES DE CONFIGURAÇÃO:
+MODO OVERFLOW
+```Assembly
+.INCLUDE <m328pdef.inc>
+
+.def AUX = r16
+
+.DSEG
+contagem: .byte 1 	; VARIÁVEL DE CONTAGEM 
+
+.CSEG
+.ORG 0x0000
+    rjmp setup
+
+.ORG 0x0020             ; VETOR DE OVERFLOW (Estouro do Timer 0)
+    rjmp isr_tc0_ovf
+
+.ORG 0x0034   
+setup:
+    ; 2. Configura Pinos (Ex: LED em PB5)
+    sbi DDRB, PB5       ; PB5 como saída
+    cbi PORTB, PB5      ; Inicia desligado
+
+    ; 3. Zera a variável de contagem na SRAM
+    ldi AUX, 0
+    sts contagem, AUX
+
+    ; 4. CONFIGURA TIMER 0 - MODO OVERFLOW
+    ; Como é Overflow, o TCCR0A fica zerado (não precisa nem escrever nele)
+    
+    ldi AUX, 0b00000101 ; Liga motor com Prescaler = 1024 (Estouro a cada 16,38 ms)
+    out TCCR0B, AUX
+
+    ldi AUX, 0b00000001 ; Liga alarme TOIE0 (Estouro)
+    sts TIMSK0, AUX     ; Cuidado: TIMSK0 exige STS!
+
+    ; 5. Habilita interrupções globais
+    sei
+
+main:
+    rjmp main           ; Fica livre aqui!
+
+isr_tc0_ovf:
+    push AUX            ; Salva contexto
+    in AUX, SREG
+    push AUX
+
+    ; Puxa contagem da SRAM e soma 1
+    lds AUX, contagem
+    inc AUX
+    
+    cpi AUX, 62         ; Já estourou 62 vezes? (62 * 16,38ms = ~1s)
+    breq INVERTE_LED_OVF
+    
+    ; Se não chegou em 62, só salva e sai
+    sts contagem, AUX
+    rjmp FIM_OVF
+
+INVERTE_LED_OVF:
+    sbi PINB, PB5       ; Inverte o LED físico
+    ldi AUX, 0          ; Zera a contagem para o próximo 1 segundo
+    sts contagem, AUX
+
+FIM_OVF:
+    pop AUX             ; Restaura contexto
+    out SREG, AUX
+    pop AUX
+    reti                ; Retorno OBRIGATÓRIO de interrupção]
+```
+
+TEMPLATE PARA CTC	
+```Assembly
+.INCLUDE <m328pdef.inc>
+
+.def AUX = r16
+
+.DSEG
+contagem: .byte 1
+
+.CSEG
+.ORG 0x0000
+    rjmp setup
+
+.ORG 0x0022     
+    rjmp isr_tc0_ctc
+
+.ORG 0x0034
+setup:
+    ; 2. Configura Pinos
+    sbi DDRB, PB5       
+    cbi PORTB, PB5      
+
+    ; 3. Zera variável na SRAM
+    ldi AUX, 0
+    sts contagem, AUX
+
+    ; 4. CONFIGURA TIMER 0 - MODO CTC
+    ldi AUX, 249
+    out OCR0A, AUX      ; Define a LINHA DE CHEGADA em 249
+
+    ldi AUX, 0b00000010 ; Liga a regra WGM01 (Modo CTC)
+    out TCCR0A, AUX
+
+    ldi AUX, 0b00000100 ; Liga motor com Prescaler = 256
+    out TCCR0B, AUX
+
+    ldi AUX, 0b00000010 ; Liga alarme OCIE0A (Comparação A)
+    sts TIMSK0, AUX     ; Cuidado: TIMSK0 exige STS!
+
+    ; 5. Habilita interrupções globais
+    sei
+
+main:
+    rjmp main
+
+isr_tc0_ctc:
+    push AUX            ; Salva contexto
+    in AUX, SREG
+    push AUX
+
+    ; Lê da SRAM e incrementa
+    lds AUX, contagem
+    inc AUX
+    
+    cpi AUX, 250        ; Já chegou na meta? (250 * 4ms = 1 segundo cravado)
+    breq INVERTE_LED_CTC
+    
+    ; Se não chegou em 250, salva o progresso e sai
+    sts contagem, AUX
+    rjmp FIM_CTC
+
+INVERTE_LED_CTC:
+    sbi PINB, PB5       ; Inverte o LED físico
+    ldi AUX, 0          ; Zera a contagem para o próximo segundo
+    sts contagem, AUX
+
+FIM_CTC:
+    pop AUX             ; Restaura contexto
+    out SREG, AUX
+    pop AUX
+    reti                ; Retorno OBRIGATÓRIO de interrupção
+```
