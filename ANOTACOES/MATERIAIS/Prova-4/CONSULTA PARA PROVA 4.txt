@@ -96,7 +96,35 @@ PRA QUE SERVE CADA REGISTRADOR;
 	- Se configurou o TCCR0A para CTC, você ativa o TIMSK0 no bit OCIE0A
 	- Se configurou o TCCR0A para Overflow, você ativa o TIMSK0 no bit TOIE0
 	
+===================================================================================
+VETORES DE INTERRUPCAO DOS TIMERS/CONTADORES:
+
+- Precisa colocar na configuração para referenciar o timer também 
+(enderecos em palavras da Flash; cada vetor ocupa 2 palavras)
+
+Timer              Evento               Vetor    Bit no TIMSK
+-----------------  -------------------  -------  ----------------
+T/C0 (8 bits)      Estouro (OVF)        0x0020   TOIE0  (TIMSK0)
+                   Comparacao A         0x001C   OCIE0A (TIMSK0)
+                   Comparacao B         0x001E   OCIE0B (TIMSK0)
+
+T/C1 (16 bits)     Estouro (OVF)        0x001A   TOIE1  (TIMSK1)
+                   Comparacao A         0x0016   OCIE1A (TIMSK1)
+                   Comparacao B         0x0018   OCIE1B (TIMSK1)
+                   Captura de entrada   0x0014   ICIE1  (TIMSK1)
+
+T/C2 (8 bits,      Estouro (OVF)        0x0012   TOIE2  (TIMSK2)
+assincrono)        Comparacao A         0x000E   OCIE2A (TIMSK2)
+                   Comparacao B         0x0010   OCIE2B (TIMSK2)
+                   
+VETORES (enderecos em palavras da Flash)
+0x0000  RESET          Reset
+0x0002  INT0           Interrupcao externa 0
+0x0004  INT1           Interrupcao externa 1
+	
+===================================================================================
 TEMPLATES DE CONFIGURAÇÃO:
+
 MODO OVERFLOW
 ```Assembly
 .INCLUDE <m328pdef.inc>
@@ -238,3 +266,84 @@ FIM_CTC:
     pop AUX
     reti                ; Retorno OBRIGATÓRIO de interrupção
 ```
+
+===================================================================================
+LEMBRANDO COMO FAZER A CONFIGURAÇÃO DE INTERRUPÇÃO EXTERNA:
+  1. DDRx (Data Direction Register) - Define a DIRECAO:
+     - Bit = 0: Pino eh configurado como ENTRADA (Input).
+     - Bit = 1: Pino eh configurado como SAIDA (Output).
+
+  2. PORTx (Port Output Data Register) - Define o DADO DE SAIDA ou PULL-UP:
+     - Se o pino for SAIDA (DDR = 1):
+         * Bit = 0: Pino em 0V (GND).
+         * Bit = 1: Pino em 5V (VCC).
+     - Se o pino for ENTRADA (DDR = 0):
+         * Bit = 0: Resistor de Pull-up interno DESLIGADO (alta impedancia).
+         * Bit = 1: Resistor de Pull-up interno LIGADO (puxa para 5V).
+
+  3. PINx (Input Pins Address) - LEITURA FISICA:
+     - Registrador somente de LEITURA.
+     - Bit = 0: Tensão no pino fisico esta em 0V.
+     - Bit = 1: Tensão no pino fisico esta em 5V.
+     * REGRA: Para ler botoes, teste sempre o registrador PINx, NUNCA o PORTx!
+     
+--------------------------------------------------------------------------------
+2. A RELACAO ENTRE INTERRUPCAO E GPIO
+
+A interrupcao externa depende 100% da configuracao do GPIO:
+1. Os pinos de interrupcao externa sao pinos fisicos normais:
+   - INT0 fica fixo no pino PD2.
+   - INT1 fica fixo no pino PD3.
+
+2. Se esses pinos nao forem configurados como entrada (cbi DDRD, PDx) com pull-up
+   ligado (sbi PORTD, PDx), a linha eletrica fica flutuando no ar, gerando
+   ruido eletromagnetico e disparando centenas de falsas interrupcoes.
+
+3. Registradores da Interrupcao:
+   - EICRA (External Interrupt Control Register A) - Sensibilidade de Disparo:
+       * Endereco: 0x69 (Memoria I/O Estendida -> SEMPRE usar STS, NUNCA out!)
+
+       TABELA DE MODOS (ISCn1 : ISCn0):
+       +------+-----------------------------+------------------------------------+
+       | Bits | Modo de Disparo             | Quando dispara (c/ Pull-up interno)|
+       +------+-----------------------------+------------------------------------+
+       |  00  | Nivel baixo (Low level)     | Enquanto o botao for mantido em 0V |
+       |  01  | Qualquer mudanca logica     | Ao APERTAR e ao SOLTAR (Toggle)    |
+       |  10  | Borda de descida (Falling)  | Ao APERTAR o botao (5V -> 0V)      |
+       |  11  | Borda de subida (Rising)    | Ao SOLTAR o botao (0V -> 5V)       |
+       +------+-----------------------------+------------------------------------+
+
+       COLA RAPIDA DE BINARIOS PARA A PROVA (Monte seu ldi AUX, 0b...):
+       -------------------------------------------------------------------------
+       Disparo desejado                     | Binario para EICRA | Hex
+       -------------------------------------+--------------------+--------------
+       [Apenas INT0 - Pino PD2]             |                    |
+       - INT0 ao apertar (borda descida)    | 0b00000010         | 0x02
+       - INT0 ao soltar (borda subida)      | 0b00000011         | 0x03
+       - INT0 aperto + soltura (qualquer)   | 0b00000001         | 0x01
+       - INT0 nivel baixo mantido           | 0b00000000         | 0x00
+       -------------------------------------+--------------------+--------------
+       [Apenas INT1 - Pino PD3]             |                    |
+       - INT1 ao apertar (borda descida)    | 0b00001000         | 0x08
+       - INT1 ao soltar (borda subida)      | 0b00001100         | 0x0C
+       - INT1 aperto + soltura (qualquer)   | 0b00000100         | 0x04
+       - INT1 nivel baixo mantido           | 0b00000000         | 0x00
+       -------------------------------------+--------------------+--------------
+       [Combinacoes com os dois pinos]      |                    |
+       - Ambos ao apertar (descida/descida) | 0b00001010         | 0x0A (Questao 2)
+       - Ambos ao soltar (subida/subida)    | 0b00001111         | 0x0F
+       - Ambos em qualquer mudanca          | 0b00000101         | 0x05
+       - INT1 qualquer + INT0 descida       | 0b00000110         | 0x06
+       - INT1 descida  + INT0 subida        | 0b00001011         | 0x0B
+       - INT1 subida   + INT0 descida       | 0b00001110         | 0x0E
+       -------------------------------------------------------------------------
+       Exemplo de configuracao no codigo:
+           ldi r16, 0b00001010   ; Seta borda de descida para INT1 e INT0
+           sts EICRA, r16        ; OBRIGATORIO ser STS!
+
+   - EIMSK (External Interrupt Mask Register - Habilitacao dos Canais):
+       * sbi EIMSK, INT0   ; Habilita a interrupcao externa INT0 (PD2)
+       * sbi EIMSK, INT1   ; Habilita a interrupcao externa INT1 (PD3)
+   - Chave Global:
+       * sei               ; Habilita interrupcoes globais (liga bit I do SREG)
+       * reti              ; Retorno de interrupcao (reabilita bit I e desempilha PC)
