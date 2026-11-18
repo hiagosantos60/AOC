@@ -8,7 +8,7 @@
   rjmp setup
 
 
-.ORG 0x0022          ; Vetor (endereco na Flash) da Comparacao A do T/C0
+.ORG 0x001C          ; Vetor (endereco na Flash) da Comparacao A do T/C0
   rjmp isr_tc0a      ; Pula para a rotina de tratamento da Comparação A
 
 setup:
@@ -17,7 +17,7 @@ setup:
 
   ; Define o Limite (TOP) de contagem exata
   ldi R16, 249
-  out OCR0A, R16     ; Grava 249 no comparador (gera interrupcao a cada 4 ms)
+  out OCR0A, R16     ; Grava 249 no comparador (gera interrupcao a cada 4 ms [250*256/16000000])
 
   ; Configura o Modo CTC (Clear Timer on Compare Match)
   ldi R16, 0b00000010 ; Ativa bit WGM01 | CTC (conta ate o OCR0A e zera)
@@ -39,9 +39,9 @@ main:
   rjmp main
 
 
-isr_tc0a:             ; O nome deve ser igual ao rjmp do vetor 0x0022
+isr_tc0a:             ; O nome deve ser igual ao rjmp do vetor 0x001C
   inc r16
-  cpi r16, 250        ; Conta 250 vezes
+  cpi r16, 250        ; Conta 250 vezes | (1/0,004) = 250
   brne fim
   sbi PINB, PB5       ; inverte o estado do LED depois de entrar 250 vezes
                       ; na interrupcao: 250 * 4 ms = 1000 ms (1 segundo exato)

@@ -29,7 +29,7 @@ contagem: .byte 1       ; Reserva 1 byte na SRAM (suficiente pois vamos contar a
 .ORG 0x0000
     rjmp setup
 
-.ORG 0x0022             ; Vetor da Interrupção por Comparação A (Timer 0)
+.ORG 0x001C            ; Vetor da Interrupção por Comparação A (Timer 0)
     rjmp isr_tc0a
 
 setup:
@@ -89,6 +89,7 @@ SALVA_E_SAI:
     reti                 ; OBRIGATÓRIO reti para interrupção!
 ```
 
+===================================================================================
 PRA QUE SERVE CADA REGISTRADOR;
 - TCCR0A: Serve para definir qual vai ser o modo, se overflow ou ctc
 - TCCR0B: Serve para definir o valor do prescaler da contagem 
@@ -207,7 +208,7 @@ contagem: .byte 1
 .ORG 0x0000
     rjmp setup
 
-.ORG 0x0022     
+.ORG 0x001C     
     rjmp isr_tc0_ctc
 
 .ORG 0x0034
