@@ -4,14 +4,14 @@ Prescaler é um configurador de frequência para determinar o tempo de estouro
 
 t_estouro = (top+1)*prescaler/(f_osc)
 - é necessário saber a frequência de oscilação
-- o top é o máximo que o TC aguenta, no caso de TC0 é 255
+- o top é o máximo que o TC aguenta, no caso de TC0 é 255 (isso no modo normal/overflow; no modo CTC o TOP passa a ser o valor gravado no OCR0A)
 
 Considerando um clock de $f_{osc} = 16\text{ MHz}$, a escolha do prescaler permite programar o estouro (e a respectiva interrupção) para cinco intervalos fixos:   
 - Prescaler 1: estouro a cada 16 micro segundo 
 - Prescaler 8: estouro a cada 128 micro segundos
-- Prescaler 64: estouro a cada 1024 mili segundos
-- Prescaler 256: estouro a cada 4096 mili segundos
-- Prescaler 1024: estouro a cada 16384 mili segundos
+- Prescaler 64: estouro a cada 1,024 mili segundos (1024 micro segundos)
+- Prescaler 256: estouro a cada 4,096 mili segundos
+- Prescaler 1024: estouro a cada 16,384 mili segundos
 
 Exemplo de código:
 .ORG 0x0000          ; Vetor reset
@@ -42,9 +42,15 @@ isr_tc0b:
     LDI r16, 0           ; Reinicia o contador de interrupções
 fim:
     RETI                 ; Retorno da interrupção
-    
-No slide apresenta o que deve ser colocado no TCCRB0 para configurar o prescaler
 
-O prescaler é controlado por TCCR0B e o TTCR0A 
+OBS sobre esse exemplo do slide:
+- A ISR usa o r16 e mexe nas flags (INC/CPI) sem salvar o SREG. Só funciona porque o main está vazio.
+  Se o main fizer qualquer coisa, tem que salvar contexto (push r16 / in r16, SREG / push r16 ... pop / out SREG / pop / reti).
+- O r16 sai do setup valendo 1 (do LDI R16, 1 do TIMSK0), então o primeiro pisca acontece com 61 estouros, os outros com 62.
+
+No slide apresenta o que deve ser colocado no TCCR0B para configurar o prescaler
+
+O prescaler é controlado SÓ pelo TCCR0B (bits CS02, CS01, CS00).
+O TCCR0A define o modo (bits WGM01 e WGM00, junto com o WGM02 que fica no TCCR0B) e o que acontece nos pinos OC0A/OC0B (bits COM0A/COM0B).
 
 

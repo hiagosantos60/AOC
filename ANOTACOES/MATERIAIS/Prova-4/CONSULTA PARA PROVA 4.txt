@@ -7,10 +7,10 @@ Qual timer usar:
 - TC1: 16 bits capacidade máxima (TOP) = 65.535.
 
 Identificar qual a estratégia de contagem vamos usar:
-- Overflow: O timer conta de 0 até o TOP do registrador e quando estoura o limite gera um pulso de interrupção e zera sozinho a contagem 
-	# t_estouro = (TOP+1)*prescaler/(f_osc)	
-	
-- CTC: O time conta de 0 até o valor personalizado registrado em OCR0A (Assume o lugar de top)
+- Overflow: O timer conta de 0 até o TOP do registrador (255 no TC0) e quando estoura volta sozinho para 0 e liga a flag TOV0. A interrupção só acontece se TOIE0 = 1 (TIMSK0) e o bit I estiver ligado (SEI)
+	# t_estouro = (TOP+1)*prescaler/(f_osc)
+
+- CTC: O timer conta de 0 até o valor personalizado registrado em OCR0A (Assume o lugar de top)
 	# t_estouro = (OCR0A+1)*prescaler/(f_osc)	
 - pode usar essa fórmula para verificar qual seria o melhor valor para colocar no OCR0A para contar até certo valor também levando em consideração o prescaler usado 
 Exemplo prático (1 ms com Prescaler de 64 e 16 MHz):
@@ -20,6 +20,7 @@ Exemplo prático (1 ms com Prescaler de 64 e 16 MHz):
 - OCR0A = 249
 (Ou seja, gravando 249 no OCR0A e usando prescaler 64, a interrupção ocorre a cada 1 ms exato!)
 Podemos usar variáveis para atingir o tempo que desejamos, como no exemplo abaixo
+(ATENÇÃO: o código abaixo usa prescaler 256, e não 64 -> (249+1)*256/16MHz = 4 ms por interrupção; 250 * 4 ms = 1 s)
 
 ```assembly
 .DSEG
@@ -29,7 +30,7 @@ contagem: .byte 1       ; Reserva 1 byte na SRAM (suficiente pois vamos contar a
 .ORG 0x0000
     rjmp setup
 
-.ORG 0x0022             ; Vetor da Interrupção por Comparação A (Timer 0)
+.ORG 0x001C             ; Vetor da Interrupção por Comparação A (TIMER0_COMPA) - 0x0022 é o SPI, NÃO o timer!
     rjmp isr_tc0a
 
 setup:
@@ -64,7 +65,7 @@ isr_tc0a:
     push r16
 
     ; 2. BUSCA E INCREMENTA
-    lds r16, contador    ; Busca o valor atual que está salvo na SRAM
+    lds r16, contagem    ; Busca o valor atual que está salvo na SRAM
     inc r16              ; Soma +1 nesse valor
 
     ; 3. COMPARA COM O ALVO
@@ -81,7 +82,7 @@ BATEU_O_TEMPO:
     ldi r16, 0           ; Zera o contador, pois o ciclo de 1s acabou
 
 SALVA_E_SAI:
-    sts contador, r16    ; Guarda o valor (seja ele incrementado ou zerado) de volta na SRAM
+    sts contagem, r16    ; Guarda o valor (seja ele incrementado ou zerado) de volta na SRAM
 
     pop r16
     out SREG, r16
@@ -90,8 +91,8 @@ SALVA_E_SAI:
 ```
 
 PRA QUE SERVE CADA REGISTRADOR;
-- TCCR0A: Serve para definir qual vai ser o modo, se overflow ou ctc
-- TCCR0B: Serve para definir o valor do prescaler da contagem 
+- TCCR0A: Serve para definir qual vai ser o modo, se overflow ou ctc (bits WGM01 e WGM00). O modo completo é WGM02:WGM01:WGM00, mas o WGM02 fica no TCCR0B; para Normal (000) e CTC (010) ele é 0, então só mexemos no TCCR0A. Os bits COM0A/COM0B controlam os pinos OC0A (PD6) / OC0B (PD5)
+- TCCR0B: Serve para definir o valor do prescaler da contagem (bits CS02, CS01, CS00). Com CS = 000 o timer fica PARADO, por isso ele é configurado por último
 - TIMSK0: Vai avisar sobre a interrupção, precisa estar conforme o TCCR0A
 	- Se configurou o TCCR0A para CTC, você ativa o TIMSK0 no bit OCIE0A
 	- Se configurou o TCCR0A para Overflow, você ativa o TIMSK0 no bit TOIE0
@@ -179,7 +180,7 @@ contagem: .byte 1
 .ORG 0x0000
     rjmp setup
 
-.ORG 0x0022     
+.ORG 0x001C             ; VETOR DE COMPARAÇÃO A (TIMER0_COMPA) - NÃO é 0x0022 (SPI)
     rjmp isr_tc0_ctc
 
 .ORG 0x0034

@@ -8,7 +8,8 @@
   rjmp setup
 
 
-.ORG 0x0022          ; Vetor (endereco na Flash) da Comparacao A do T/C0
+.ORG 0x001C          ; Vetor (endereco na Flash) da Comparacao A do T/C0 (TIMER0_COMPA)
+                     ; Obs: 0x0022 e o vetor do SPI, nao do timer (datasheet, Tabela 12-6)
   rjmp isr_tc0a      ; Pula para a rotina de tratamento da Comparação A
 
 setup:
