@@ -1,0 +1,52 @@
+t_estouro = (255+1)*1024/16MHz = 16,384ms   (maior tempo possível no 8 bits)
+    - Para 8 bits chegar a 10 segundos
+    - teria que contar 10s / 16,384ms = 610 vezes (10,0 s aprox)
+    - 610 não cabe em 1 byte (máximo 255) -> precisa de contador de 16 bits
+      ou de dois contadores (ex.: um conta até 1 s, outro conta 10 segundos)
+    - Por isso, para 10 segundos, o melhor é usar o TC1 (16 bits)
+
+t_estouro = (65535+1)*256/16MHz = 1,048576 segundos
+    - Com 16 bits (TC1) e prescaler 256, basta contar 10 vezes o overflow
+    - Com isso já vamos chegar nos 10 segundos aprox (10 * 1,048576 = 10,486s)
+
+    - Já para a comparação, vai precisar limitar em t_estouro = (OCR1A+1)*prescaler/(f_osc)
+    - OCR1A = (t_estouro*f_osc/prescaler) -1
+    - Não dá para usar t_estouro = 1,048576 (é o máximo do timer, o OCR1A daria 65535 e não
+      sobra nada), então escolhe um tempo redondo que divida 10 segundos -> 1 segundo
+    - OCR1A = (1*16000000/256) -1 -> O resultado é 62.499, cabe em 16 bits (máximo 65.535)
+    - t_estouro = (62499+1)*256/16MHz = 1 segundo -> conta 10 vezes = 10 segundos exatos
+
+A configuração seria:
+PARA CTC (TC1, vetor 0x0016), conta 10 vezes dentro da interrupção:
+setup:
+    ldi AUX, 0
+    sts contagem, AUX
+
+    ; CONFIGURA TIMER 1 - MODO CTC
+    ; Define a LINHA DE CHEGADA em 62499
+    ldi AUX, high(62499)
+    sts OCR1AH, AUX     ; 16 bits: parte ALTA primeiro
+    ldi AUX, low(62499)
+    sts OCR1AL, AUX
+
+    ldi AUX, 0b00000010 ; Liga OCIE1A
+    sts TIMSK1, AUX
+
+    ldi AUX, 0b00001100 ; Liga modo CTC (WGM12) + prescaler 256 (CS12)
+    sts TCCR1B, AUX     ; No TC1 o modo CTC fica no TCCR1B
+
+    sei
+
+
+PARA OVERFLOW (TC1, vetor 0x001A), conta 10 vezes dentro da interrupção
+setup:
+    ldi AUX, 0
+    sts contagem, AUX   ; conta a cada chamada da interrupção
+
+    ldi AUX, 0b00000001 ; Liga TOIE1
+    sts TIMSK1, AUX
+
+    ldi AUX, 0b00000100 ; prescaler 256
+    sts TCCR1B, AUX     ; TC1 é tudo com STS
+
+    sei
