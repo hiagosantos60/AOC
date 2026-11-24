@@ -1,0 +1,174 @@
+Exemplos de calculo prescaler e tempo 
+
+FÓRMULAS (f_osc = 16MHz = 16000000)
+    TOP = (t * f_osc / prescaler) - 1      -> quando tenho o tempo
+    t   = (TOP+1) * prescaler / f_osc      -> quando tenho o TOP
+
+    TC0 (8 bits):  TOP no máximo 255
+    TC1 (16 bits): TOP no máximo 65535
+    Overflow: TOP fixo (255 no TC0, 65535 no TC1)
+
+
+EX 1 - TC0, CTC, 100 µs
+    - prescaler 1: TOP = (0,0001*16000000/1) - 1 = 1599 -> passa de 255
+    - prescaler 8: TOP = (0,0001*16000000/8) - 1 = 199  ✔
+
+.org 0x001C
+    rjmp isr_tc0a
+
+setup:
+    ldi R16, 0b00000010   ; CTC
+    out TCCR0A, R16
+    ldi R16, 199          ; TOP
+    out OCR0A, R16
+    ldi R16, 0b00000010   ; OCIE0A
+    sts TIMSK0, R16
+    ldi R16, 0b00000010   ; prescaler 8
+    out TCCR0B, R16
+    sei
+
+
+EX 2 - TC0, CTC, 10 ms (pegadinha)
+    - prescaler 1024: TOP = (0,01*16000000/1024) - 1 = 155,25 -> não é inteiro
+    - prescaler 256:  TOP = (0,01*16000000/256) - 1  = 624    -> passa de 255
+    - Não dá direto. Usa t = 2 ms:
+      prescaler 256: TOP = (0,002*16000000/256) - 1 = 124 ✔
+      contar 10 ms / 2 ms = 5 vezes
+.org 0x0000
+    rjmp setup
+
+.org 0x001C            ; TIMER0_COMPA
+    rjmp isr_tc0a
+
+setup:
+    sbi DDRB, PB5         ; PB5 como saída (LED)
+    ldi R17, 0            ; zera o contador
+
+    ldi R16, 0b00000010   ; CTC (WGM01)
+    out TCCR0A, R16
+    ldi R16, 124          ; TOP -> 2 ms
+    out OCR0A, R16
+    ldi R16, 0b00000010   ; OCIE0A
+    sts TIMSK0, R16
+    ldi R16, 0b00000100   ; prescaler 256
+    out TCCR0B, R16
+    sei
+
+main:
+    rjmp main
+
+isr_tc0a:                 ; entra a cada 2 ms
+    inc R17
+    cpi R17, 5            ; 5 * 2 ms = 10 ms
+    brne fim
+    sbi PINB, PB5         ; passaram 10 ms: inverte o LED
+    ldi R17, 0
+fim:
+    reti
+
+
+EX 3 - TC0, OVERFLOW, prescaler 64: qual o tempo?
+    - t = (255+1)*64/16000000 = 0,001024 s = 1,024 ms
+.org 0x0020
+    rjmp isr_tc0_ovf
+
+setup: 
+    ldi R16, 0b00000000   ; modo normal
+    out TCCR0A, R16
+    ldi R16, 0b00000001   ; TOIE0
+    sts TIMSK0, R16
+    ldi R16, 0b00000011   ; prescaler 64
+    out TCCR0B, R16
+    sei
+
+
+EX 4 - Caminho inverso: TC0, CTC, TOP = 99, prescaler 64
+    - t = (99+1)*64/16000000 = 0,0004 s = 400 µs
+
+
+EX 5 - TC1, CTC, 2 segundos
+    - prescaler 256:  OCR1A = (2*16000000/256) - 1  = 124999 -> passa de 65535
+    - prescaler 1024: OCR1A = (2*16000000/1024) - 1 = 31249  ✔
+
+.org 0x0016
+    rjmp isr_tc1a
+setup:
+    ldi R16, 0b00000000
+    sts TCCR1A, R16
+    ldi R16, high(31249)  ; parte alta primeiro
+    sts OCR1AH, R16
+    ldi R16, low(31249)
+    sts OCR1AL, R16
+    ldi R16, 0b00000010   ; OCIE1A
+    sts TIMSK1, R16
+    ldi R16, 0b00001101   ; CTC (WGM12) + prescaler 1024
+    sts TCCR1B, R16
+    sei
+
+EX 6 - TC1, CTC, 100 ms
+    - prescaler 64: OCR1A = (0,1*16000000/64) - 1 = 24999 ✔
+
+
+EX 7 - TC0, OVERFLOW, 1 segundo com prescaler 1024
+    - t = (255+1)*1024/16000000 = 0,016384 s = 16,384 ms
+    - vezes = 1 / 0,016384 = 61,03 -> não é exato
+    - contando 61 vezes: 61 * 16,384 ms = 0,999 s (aproximado)
+
+
+EX 8 - TC0, OVERFLOW com valor inicial, 1 ms, prescaler 64
+    - TOP = (0,001*16000000/64) - 1 = 249 -> precisa de 250 contagens (TOP+1)
+    - TCNT0 = 256 - 250 = 6 (recarregar em toda interrupção)
+
+
+EX 9 - LED piscando a 1 Hz (pegadinha)
+    - 1 Hz = período de 1 s = 500 ms ligado + 500 ms desligado
+    - o LED inverte a cada 500 ms
+    - t = 4 ms, prescaler 256: TOP = (0,004*16000000/256) - 1 = 249 ✔
+    - contar 0,5 / 0,004 = 125 vezes
+    
+    
+    
+VETORES (ATmega328p)
+    0x0016 -> TIMER1_COMPA (TC1 comparação A / CTC)
+    0x001A -> TIMER1_OVF   (TC1 overflow)
+    0x001C -> TIMER0_COMPA (TC0 comparação A / CTC)
+    0x0020 -> TIMER0_OVF   (TC0 overflow)
+
+
+BITS DO PRESCALER (últimos 3 bits do TCCR0B / TCCR1B)
+    sem clock (parado) -> 000
+    prescaler 1        -> 001
+    prescaler 8        -> 010
+    prescaler 64       -> 011
+    prescaler 256      -> 100
+    prescaler 1024     -> 101
+
+
+=============== TC0 (8 bits) ===============
+    TCCR0A, TCCR0B, OCR0A, TCNT0 -> usa OUT
+    TIMSK0                       -> usa STS
+
+    Registrador | Overflow    | CTC
+    TCCR0A      | 0b00000000  | 0b00000010  (WGM01 = 1)
+    TCCR0B      | 0b00000xxx  | 0b00000xxx  (xxx = prescaler)
+    TIMSK0      | 0b00000001  | 0b00000010  (TOIE0 / OCIE0A)
+    OCR0A       | não usa     | TOP
+
+
+=============== TC1 (16 bits) ===============
+    Todos usam STS
+    OCR1A e TCNT1: grava a parte ALTA (H) primeiro, depois a BAIXA (L)
+
+    Registrador | Overflow    | CTC
+    TCCR1A      | 0b00000000  | 0b00000000
+    TCCR1B      | 0b00000xxx  | 0b00001xxx  (WGM12 = 1 no TCCR1B!)
+    TIMSK1      | 0b00000001  | 0b00000010  (TOIE1 / OCIE1A)
+    OCR1A       | não usa     | TOP
+
+
+ORDEM NO SETUP
+    1. TCCRxA (modo)
+    2. OCRxA  (TOP, só no CTC)
+    3. TIMSKx (liga a interrupção)
+    4. TCCRxB (prescaler -> o timer começa a contar aqui)
+    5. sei

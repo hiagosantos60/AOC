@@ -50,3 +50,55 @@ setup:
     sts TCCR1B, AUX     ; TC1 é tudo com STS
 
     sei
+
+
+
+========================================================================
+
+EXEMPLO DE CÓDIGO COMPLETO:
+.org 0x0000
+    rjmp setup          ; ao ligar, vai para o setup
+.org 0x0016
+    rjmp isr_t1         ; interrupção do Timer 1 (comparação A)
+
+setup:
+    ; zera a contagem
+    ldi AUX, 0
+    sts contagem, AUX
+
+    ; TCCR1A = 0 (necessário para o modo CTC)
+    ldi AUX, 0
+    sts TCCR1A, AUX
+
+    ; valor de comparação = 62499 (1 segundo)
+    ldi AUX, high(62499)
+    sts OCR1AH, AUX     ; parte alta primeiro
+    ldi AUX, low(62499)
+    sts OCR1AL, AUX
+
+    ; liga a interrupção de comparação A
+    ldi AUX, 0b00000010
+    sts TIMSK1, AUX
+
+    ; modo CTC + prescaler 256 (o timer começa a contar aqui)
+    ldi AUX, 0b00001100
+    sts TCCR1B, AUX
+
+    sei                 ; habilita interrupções
+
+loop:
+    rjmp loop           ; fica parado esperando
+
+; ===== roda a cada 1 segundo =====
+isr_t1:
+    lds AUX, contagem   ; lê a contagem
+    inc AUX             ; soma 1
+    cpi AUX, 10         ; já chegou em 10?
+    brne salva          ; se não, só salva e sai
+
+    ; >>> passaram 10 segundos: coloque sua ação aqui <<<
+    ldi AUX, 0          ; recomeça a contagem
+
+salva:
+    sts contagem, AUX   ; guarda a contagem
+    reti                ; volta da interrupção

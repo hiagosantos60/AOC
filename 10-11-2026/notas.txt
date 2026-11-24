@@ -1,0 +1,93 @@
+O microcontrolador conta com três periféricos independentes: dois de 8 bits (TC0 e TC2) e um de 16 bits (TC1)
+
+Prescaler é um configurador de frequência para determinar o tempo de estouro 
+
+t_estouro = (top+1)*prescaler/(f_osc)
+- é necessário saber a frequência de oscilação
+- o top é o máximo que o TC aguenta, no caso de TC0 é 255 (isso no modo normal/overflow; no modo CTC o TOP passa a ser o valor gravado no OCR0A)
+
+Considerando um clock de $f_{osc} = 16\text{ MHz}$, a escolha do prescaler permite programar o estouro (e a respectiva interrupção) para cinco intervalos fixos:   
+- Prescaler 1: estouro a cada 16 micro segundo 
+- Prescaler 8: estouro a cada 128 micro segundos
+- Prescaler 64: estouro a cada 1,024 mili segundos (1024 micro segundos)
+- Prescaler 256: estouro a cada 4,096 mili segundos
+- Prescaler 1024: estouro a cada 16,384 mili segundos
+
+Exemplo de código:
+.ORG 0x0000          ; Vetor reset
+    RJMP setup
+.ORG 0x0020          ; Vetor (endereço na Flash) do estouro do T/C0
+    RJMP isr_tc0b
+
+setup:
+    SBI DDRB, PB5        ; Configura pino PB5 como saída
+    CBI PORTB, PB5       ; Desliga LED inicialmente
+    
+    LDI R16, 0b00000101  ; TC0 com prescaler de 1024 (16,384 ms a 16 MHz)
+    OUT TCCR0B, R16      ; Grava configuração no registrador de controle B
+    
+    LDI R16, 1
+    STS TIMSK0, R16      ; Habilita int. de estouro do TC0 (TOIE0 = 1)
+    
+    SEI                  ; Habilita as interrupções globais
+
+main:
+    RJMP main            ; Laço principal livre
+
+isr_tc0b:
+    INC r16              ; Contabiliza mais um estouro de 16,384 ms
+    CPI r16, 62          ; Compara se já ocorreram 62 interrupções
+    BRNE fim             ; Se for diferente de 62, encerra a rotina
+    SBI PINB, PB5        ; Inverte o LED após 62 * 16,384 ms = 1,015 s
+    LDI r16, 0           ; Reinicia o contador de interrupções
+fim:
+    RETI                 ; Retorno da interrupção
+
+OBS sobre esse exemplo do slide:
+- A ISR usa o r16 e mexe nas flags (INC/CPI) sem salvar o SREG. Só funciona porque o main está vazio.
+  Se o main fizer qualquer coisa, tem que salvar contexto (push r16 / in r16, SREG / push r16 ... pop / out SREG / pop / reti).
+- O r16 sai do setup valendo 1 (do LDI R16, 1 do TIMSK0), então o primeiro pisca acontece com 61 estouros, os outros com 62.
+
+No slide apresenta o que deve ser colocado no TCCR0B para configurar o prescaler
+
+O prescaler é controlado SÓ pelo TCCR0B (bits CS02, CS01, CS00).
+O TCCR0A define o modo (bits WGM01 e WGM00, junto com o WGM02 que fica no TCCR0B) e o que acontece nos pinos OC0A/OC0B (bits COM0A/COM0B).
+
+
+============================================================================
+Exemplos de contas de prescaler e top
+
+QUESTÃO 6 - Interrupção a cada 1 ms (TC0)
+    TOP = (t * f_osc / prescaler) - 1
+
+    - Prescaler 256: 0,001 * 16000000 / 256 = 62,5 -> não é inteiro, não serve
+    - Prescaler 64:  0,001 * 16000000 / 64  = 250  -> TOP = 249 (cabe em 8 bits)
+
+    Resposta: prescaler 64, TOP = 249
+
+
+QUESTÃO 7 - Interrupção a cada 20 ms só com o TC0
+    - Maior tempo possível no TC0 (prescaler 1024, TOP 255):
+      t_max = (255+1) * 1024 / 16MHz = 16,384 ms
+    - 20 ms > 16,384 ms -> não dá
+    - Pela fórmula: TOP = (0,02 * 16000000 / 1024) - 1 = 311,5 -> passa de 255
+
+    Resposta: não dá, precisa de um contador ou do TC1 (16 bits)
+
+
+QUESTÃO 8 - Piscar LED a cada 500 ms (TC0)
+    - Na fórmula vai o tempo de UMA interrupção, não o tempo total
+    - tempo total = t * vezes
+    - Escolho t = 4 ms (divide 500 ms certinho)
+
+    - Prescaler 256: 0,004 * 16000000 / 256 = 250 -> TOP = 249 (cabe em 8 bits)
+    - Vezes = 500 ms / 4 ms = 125 (cabe em 8 bits)
+
+    Resposta: t = 4 ms, prescaler 256, TOP = 249, contar 125 vezes
+    (outra opção: t = 2 ms, prescaler 256, TOP = 124, contar 250 vezes)
+
+
+DICA
+    - Se o TOP der maior que 255 -> aumentar o prescaler ou diminuir o t
+    - Se o TOP não der inteiro   -> trocar o prescaler (não dá tempo exato)
+    - Se o TOP der milhões       -> coloquei o tempo total no lugar do t

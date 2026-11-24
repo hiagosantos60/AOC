@@ -14,7 +14,7 @@ Identificar qual a estratégia de contagem vamos usar:
 	# t_estouro = (OCR0A+1)*prescaler/(f_osc)	
 - pode usar essa fórmula para verificar qual seria o melhor valor para colocar no OCR0A para contar até certo valor também levando em consideração o prescaler usado 
 Exemplo prático (1 ms com Prescaler de 64 e 16 MHz):
-- OCR0A = (0,001 × 16.000.000) / 64 - 1
+- OCR0A = (0,001 * 16.000.000) / 64 - 1
 - OCR0A = 16.000 / 64 - 1
 - OCR0A = 250 - 1
 - OCR0A = 249
@@ -180,7 +180,7 @@ contagem: .byte 1
 .ORG 0x0000
     rjmp setup
 
-.ORG 0x001C             ; VETOR DE COMPARAÇÃO A (TIMER0_COMPA) - NÃO é 0x0022 (SPI)
+.ORG 0x001C             ; VETOR DE COMPARAÇÃO A
     rjmp isr_tc0_ctc
 
 .ORG 0x0034
